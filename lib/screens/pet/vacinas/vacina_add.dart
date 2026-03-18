@@ -24,8 +24,12 @@ class VacinaAdd extends StatelessWidget {
     bool editing = false;
     if (vacina1.name != null) editing = true;
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.white),
+        foregroundColor: Colors.white,
         title: vacina1.name != null
             ? const Text('Editar Vacina', style: TextStyle(color: Colors.white))
             : const Text('Cadastrar Vacina',
@@ -42,16 +46,33 @@ class VacinaAdd extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(
-        child: Container(
-          height: MediaQuery.of(context).size.height * .5,
-          child: ListView(children: <Widget>[
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color.fromARGB(255, 255, 111, 0),
+              Color.fromARGB(255, 255, 161, 0),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: ListView(
+          padding: EdgeInsets.only(
+            top: MediaQuery.of(context).padding.top + kToolbarHeight + 16,
+            left: 16,
+            right: 16,
+            bottom: 16,
+          ),
+          children: <Widget>[
             VacinaCard(
               adding: !editing,
               pet: pet1,
               vacina: vacina1,
             ),
-          ]),
+          ],
         ),
       ),
     );

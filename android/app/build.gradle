@@ -32,8 +32,8 @@ android {
         //minSdkVersion flutter.minSdkVersion//flutter.minSdkVersion
         minSdkVersion flutter.minSdkVersion
         targetSdk = 35//flutter.targetSdkVersion
-        versionCode = 1510//flutter.versionCode
-        versionName = 1510//flutter.versionName
+        versionCode = 1513//flutter.versionCode
+        versionName = 1513//flutter.versionName
     }
 
     signingConfigs {

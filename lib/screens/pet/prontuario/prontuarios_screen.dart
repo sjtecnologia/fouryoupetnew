@@ -23,8 +23,12 @@ class _ProntuariosScreenState extends State<ProntuariosScreen> {
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).primaryColor;
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.white),
+        foregroundColor: Colors.white,
         title: Text('Prontuários', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         actions: <Widget>[
@@ -78,6 +82,13 @@ class _ProntuariosScreenState extends State<ProntuariosScreen> {
             }
             if (widget.pet.prontuarios != null) {
               return ListView.builder(
+                  padding: EdgeInsets.only(
+                    top:
+                        MediaQuery.of(context).padding.top + kToolbarHeight + 8,
+                    left: 8,
+                    right: 8,
+                    bottom: 8,
+                  ),
                   itemCount: widget.pet.prontuarios!.length,
                   itemBuilder: (_, index) {
                     return Card(

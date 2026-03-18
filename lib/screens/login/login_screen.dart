@@ -46,9 +46,12 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: scaffoldKey,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+        foregroundColor: Colors.white,
         title: const Text(
           'Entrar',
           style: TextStyle(
@@ -63,7 +66,6 @@ class _LoginScreenState extends State<LoginScreen> {
             },
             style: TextButton.styleFrom(
               foregroundColor: Colors.white,
-              backgroundColor: Theme.of(context).primaryColor,
             ),
             child: const Text(
               'CRIAR CONTA',
@@ -78,191 +80,216 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 20),
-              // Logo
-              Center(
-                child: SizedBox(
-                  height: 80,
-                  child: Image.asset('images/4YOUPET/logo app smal.png'),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color.fromARGB(255, 255, 111, 0),
+              Color.fromARGB(255, 255, 161, 0),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + kToolbarHeight + 20,
+              left: 16,
+              right: 16,
+              bottom: 16,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Logo
+                Center(
+                  child: SizedBox(
+                    height: 80,
+                    child: Image.asset('images/4YOUPET/logo app smal.png'),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 30),
-              // Formulário
-              Card(
-                elevation: 0,
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Form(
-                    key: formKey,
-                    child: Consumer<UserManager>(
-                      builder: (_, userManager, child) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: <Widget>[
-                            TextFormField(
-                              controller: emailController,
-                              enabled: !userManager.loading,
-                              decoration: const InputDecoration(
-                                hintText: 'E-mail',
+                const SizedBox(height: 30),
+                // Formulário
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Form(
+                      key: formKey,
+                      child: Consumer<UserManager>(
+                        builder: (_, userManager, child) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              TextFormField(
+                                controller: emailController,
+                                enabled: !userManager.loading,
+                                decoration: const InputDecoration(
+                                  hintText: 'E-mail',
+                                ),
+                                keyboardType: TextInputType.emailAddress,
+                                autocorrect: false,
+                                validator: (email) {
+                                  if (!emailValid(email!)) {
+                                    return 'e-Mail inválido';
+                                  }
+                                  return null;
+                                },
                               ),
-                              keyboardType: TextInputType.emailAddress,
-                              autocorrect: false,
-                              validator: (email) {
-                                if (!emailValid(email!)) {
-                                  return 'e-Mail inválido';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: passController,
-                              enabled: !userManager.loading,
-                              obscureText: !isObscureText,
-                              decoration: InputDecoration(
-                                hintText: 'Senha',
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    isObscureText
-                                        ? Icons.visibility
-                                        : Icons.visibility_off,
-                                    color: Theme.of(context).primaryColor,
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: passController,
+                                enabled: !userManager.loading,
+                                obscureText: !isObscureText,
+                                decoration: InputDecoration(
+                                  hintText: 'Senha',
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      isObscureText
+                                          ? Icons.visibility
+                                          : Icons.visibility_off,
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        isObscureText = !isObscureText;
+                                      });
+                                    },
+                                  ),
+                                ),
+                                autocorrect: false,
+                                validator: (pass) {
+                                  if (pass!.isEmpty || pass.length < 6) {
+                                    return 'Senha inválida';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              // Esqueci minha senha
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.black,
                                   ),
                                   onPressed: () {
-                                    setState(() {
-                                      isObscureText = !isObscureText;
-                                    });
+                                    Navigator.of(context)
+                                        .pushNamed('/resetpass');
                                   },
+                                  child: const Text('Esqueci minha senha'),
                                 ),
                               ),
-                              autocorrect: false,
-                              validator: (pass) {
-                                if (pass!.isEmpty || pass.length < 6) {
-                                  return 'Senha inválida';
-                                }
-                                return null;
-                              },
-                            ),
-                            // Esqueci minha senha
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.black,
-                                ),
-                                onPressed: () {
-                                  Navigator.of(context).pushNamed('/resetpass');
-                                },
-                                child: const Text('Esqueci minha senha'),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            // Botão de login tradicional
-                            SizedBox(
-                              height: 48,
-                              child: ElevatedButton(
-                                onPressed: userManager.loading
-                                    ? null
-                                    : () {
-                                        if (formKey.currentState!.validate()) {
-                                          userManager.signIn(
-                                            userapp: Userapp(
-                                              email: emailController.text,
-                                              password: passController.text,
-                                            ),
-                                            onFail: (e) {
-                                              showTopSnackBar(
-                                                Overlay.of(context),
-                                                CustomSnackBar.error(
-                                                  message:
-                                                      "Falha ao entrar: $e",
-                                                ),
-                                              );
-                                            },
-                                            onSuccess: () {
-                                              showTopSnackBar(
-                                                Overlay.of(context),
-                                                CustomSnackBar.success(
-                                                  message: "Sucesso ao entrar",
-                                                ),
-                                              );
-                                              var endereco = context
-                                                      .read<UserManager>()
-                                                      .userapp
-                                                      ?.address
-                                                      ?.length ??
-                                                  0;
-                                              if (endereco == 0) {
-                                                Navigator.of(context)
-                                                    .pushNamed('/listadress');
-                                              } else {
-                                                Navigator.of(context)
-                                                    .pushNamed('/home');
-                                              }
-                                            },
-                                          );
-                                        }
-                                      },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor:
-                                      Theme.of(context).primaryColor,
-                                  foregroundColor: Colors.white,
-                                  disabledBackgroundColor: Theme.of(context)
-                                      .primaryColor
-                                      .withAlpha(100),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                              const SizedBox(height: 8),
+                              // Botão de login tradicional
+                              SizedBox(
+                                height: 48,
+                                child: ElevatedButton(
+                                  onPressed: userManager.loading
+                                      ? null
+                                      : () {
+                                          if (formKey.currentState!
+                                              .validate()) {
+                                            userManager.signIn(
+                                              userapp: Userapp(
+                                                email: emailController.text,
+                                                password: passController.text,
+                                              ),
+                                              onFail: (e) {
+                                                showTopSnackBar(
+                                                  Overlay.of(context),
+                                                  CustomSnackBar.error(
+                                                    message:
+                                                        "Falha ao entrar: $e",
+                                                  ),
+                                                );
+                                              },
+                                              onSuccess: () {
+                                                showTopSnackBar(
+                                                  Overlay.of(context),
+                                                  CustomSnackBar.success(
+                                                    message:
+                                                        "Sucesso ao entrar",
+                                                  ),
+                                                );
+                                                var endereco = context
+                                                        .read<UserManager>()
+                                                        .userapp
+                                                        ?.address
+                                                        ?.length ??
+                                                    0;
+                                                if (endereco == 0) {
+                                                  Navigator.of(context)
+                                                      .pushNamed('/listadress');
+                                                } else {
+                                                  _goToHome();
+                                                }
+                                              },
+                                            );
+                                          }
+                                        },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        Theme.of(context).primaryColor,
+                                    foregroundColor: Colors.white,
+                                    disabledBackgroundColor: Theme.of(context)
+                                        .primaryColor
+                                        .withAlpha(100),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
                                   ),
-                                ),
-                                child: userManager.loading
-                                    ? const SizedBox(
-                                        height: 24,
-                                        width: 24,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation(
-                                              Colors.white),
+                                  child: userManager.loading
+                                      ? const SizedBox(
+                                          height: 24,
+                                          width: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor: AlwaysStoppedAnimation(
+                                                Colors.white),
+                                          ),
+                                        )
+                                      : const Text(
+                                          'Entrar',
+                                          style: TextStyle(fontSize: 16),
                                         ),
-                                      )
-                                    : const Text(
-                                        'Entrar',
-                                        style: TextStyle(fontSize: 16),
-                                      ),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 24),
-                            // Divisor
-                            const SocialLoginDivider(),
-                            const SizedBox(height: 16),
-                            // Botões de login social
-                            GoogleLoginButton(
-                              isLoading: userManager.loading,
-                              onPressed: () => _handleGoogleLogin(userManager),
-                            ),
-                            const SizedBox(height: 10),
-                            if (Platform.isIOS) ...[
-                              AppleLoginButton(
+                              const SizedBox(height: 24),
+                              // Divisor
+                              const SocialLoginDivider(),
+                              const SizedBox(height: 16),
+                              // Botões de login social
+                              GoogleLoginButton(
                                 isLoading: userManager.loading,
-                                onPressed: () => _handleAppleLogin(userManager),
+                                onPressed: () =>
+                                    _handleGoogleLogin(userManager),
                               ),
                               const SizedBox(height: 10),
+                              if (Platform.isIOS) ...[
+                                AppleLoginButton(
+                                  isLoading: userManager.loading,
+                                  onPressed: () =>
+                                      _handleAppleLogin(userManager),
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                              const SizedBox(height: 16),
                             ],
-                            const SizedBox(height: 16),
-                          ],
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -302,7 +329,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (endereco == 0) {
       Navigator.of(context).pushNamed('/listadress');
     } else {
-      Navigator.of(context).pushNamed('/home');
+      _goToHome();
     }
   }
 

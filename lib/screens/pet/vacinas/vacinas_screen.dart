@@ -24,9 +24,13 @@ class _VacinasScreenState extends State<VacinasScreen> {
     final primaryColor = Theme.of(context).primaryColor;
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text('Vacinas', style: TextStyle(color: Colors.white)),
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.white),
+        foregroundColor: Colors.white,
+        title: const Text('Vacinas', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         actions: <Widget>[
           Consumer<PetManager>(
@@ -73,6 +77,9 @@ class _VacinasScreenState extends State<VacinasScreen> {
               if (widget.pet.vacinas != null) {
                 return Column(
                   children: [
+                    SizedBox(
+                        height: MediaQuery.of(context).padding.top +
+                            kToolbarHeight),
                     Container(
                       color: Colors.white,
                       child: Row(

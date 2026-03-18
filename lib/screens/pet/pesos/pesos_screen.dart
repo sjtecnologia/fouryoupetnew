@@ -23,8 +23,12 @@ class _PesoScreenState extends State<PesoScreen> {
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).primaryColor;
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.white),
+        foregroundColor: Colors.white,
         title: Text('Pesos', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         actions: <Widget>[
@@ -78,6 +82,13 @@ class _PesoScreenState extends State<PesoScreen> {
             }
             if (widget.pet.pesos != null) {
               return ListView.builder(
+                  padding: EdgeInsets.only(
+                    top:
+                        MediaQuery.of(context).padding.top + kToolbarHeight + 8,
+                    left: 8,
+                    right: 8,
+                    bottom: 8,
+                  ),
                   itemCount: widget.pet.pesos!.length,
                   itemBuilder: (_, index) {
                     return Card(

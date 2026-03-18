@@ -24,8 +24,12 @@ class PesoAdd extends StatelessWidget {
     bool editing = false;
     if (pesos.peso != null) editing = true;
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.white),
+        foregroundColor: Colors.white,
         title: pesos.peso != null
             ? const Text('Editar Peso', style: TextStyle(color: Colors.white))
             : const Text('Cadastrar Peso',
@@ -42,16 +46,33 @@ class PesoAdd extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(
-        child: Container(
-          height: MediaQuery.of(context).size.height * .5,
-          child: ListView(children: <Widget>[
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color.fromARGB(255, 255, 111, 0),
+              Color.fromARGB(255, 255, 161, 0),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: ListView(
+          padding: EdgeInsets.only(
+            top: MediaQuery.of(context).padding.top + kToolbarHeight + 16,
+            left: 16,
+            right: 16,
+            bottom: 16,
+          ),
+          children: <Widget>[
             PesoCard(
               adding: !editing,
               pet: pet,
               pesos: pesos,
             ),
-          ]),
+          ],
         ),
       ),
     );

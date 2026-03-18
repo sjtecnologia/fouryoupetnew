@@ -117,20 +117,12 @@ class _BaseScreenState extends State<BaseScreen> {
   }
 
   void _onPageManagerChanged() {
-    final pageManager = context.read<PageManager>();
-    final targetPage = pageManager.page;
-    if (pageController.hasClients && targetPage != paginaAtual) {
-      pageController.jumpToPage(targetPage);
-      setPaginaAtual(targetPage);
-    } else if (!pageController.hasClients) {
-      // Se o controller não tem clientes ainda, agenda para depois
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (pageController.hasClients && mounted) {
-          pageController.jumpToPage(targetPage);
-          setPaginaAtual(targetPage);
-        }
-      });
-    }
+    // A sincronização agora é feita diretamente no Consumer do build
+    // Este método é mantido para compatibilidade, mas a lógica foi movida
+    if (!mounted) return;
+    setState(() {
+      // Força uma reconstrução para sincronizar
+    });
   }
 
   late AndroidNotificationDetails androidDetails;
@@ -369,7 +361,6 @@ class _BaseScreenState extends State<BaseScreen> {
         NotificationDetails(android: androidDetails, iOS: iosDetails));
   }
 
-  Widget? btnav;
   int qtdnfn = 0;
 
   @override
@@ -378,41 +369,80 @@ class _BaseScreenState extends State<BaseScreen> {
       onTap: () {
         FocusScope.of(context).requestFocus(FocusNode());
       },
-      child: Scaffold(
-        drawer: CustomDrawer(),
-        extendBody: true,
-        bottomNavigationBar: btnav,
-        body: Consumer5<UserManager, ProductManager, NotificationsManager,
-            SearchProvider, PageManager>(
-          builder: (_, userManager, productManager, notoficationManager,
-              seacherProvider, pageManager, __) {
-            // ✅ MUDANÇA AQUI: Adiciona uma Key para forçar a reconstrução do PageView
-            // quando as condições de exibição das páginas mudam.
-            final Key pageViewKey = ValueKey(
-                'pageView_${userManager.adminEnabled}_${userManager.userapp?.companyID ?? 'no_company'}');
+      child: Consumer<PageManager>(
+        builder: (context, pageManager, child) {
+          // Sincroniza paginaAtual com o PageManager
+          if (paginaAtual != pageManager.page) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && pageController.hasClients) {
+                pageController.jumpToPage(pageManager.page);
+                setState(() {
+                  paginaAtual = pageManager.page;
+                });
+              }
+            });
+          }
 
-            // Lista fixa de páginas para o menu inferior
-            final List<Widget> paginasFixas = [
-              HomeScreen(), // 0
-              OrdersScreen(), // 1
-              EventsScreen(), // 2
-              HotelsScreen(), // 3
-              ScreenPet(), // 4
-              UserScreen(), // 5
-              NotificationsScreen(), // 6
-              MySearchPageNew(), // 7
-            ];
-            return PageView(
-              key: pageViewKey,
-              controller: pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: paginasFixas,
-              onPageChanged: (pageIndex) {
-                setPaginaAtual(pageIndex);
+          return Scaffold(
+            drawer: CustomDrawer(),
+            extendBody: true,
+            bottomNavigationBar: CurvedNavigationBar(
+              key: ValueKey('bottomNav_$paginaAtual'),
+              buttonBackgroundColor: Colors.white,
+              index: paginaAtual,
+              animationCurve: Curves.easeInOut,
+              animationDuration: const Duration(milliseconds: 300),
+              backgroundColor: Color.fromARGB(255, 255, 161, 0),
+              items: const [
+                Icon(Icons.home),
+                Icon(Icons.shopify),
+                Icon(Icons.calendar_today),
+                Icon(Icons.hotel),
+                Icon(Icons.pets_sharp),
+                Icon(Icons.person),
+                Icon(Icons.notification_important),
+                Icon(Icons.search),
+              ],
+              onTap: (pageIndex) {
+                if (pageIndex >= 0 && pageIndex < numPaginasFixas) {
+                  pageManager.setPage(pageIndex);
+                  context.read<NotificationsManager>().stNotificnolido();
+                }
               },
-            );
-          },
-        ),
+            ),
+            body: Consumer4<UserManager, ProductManager, NotificationsManager,
+                SearchProvider>(
+              builder: (_, userManager, productManager, notoficationManager,
+                  seacherProvider, __) {
+                // ✅ MUDANÇA AQUI: Adiciona uma Key para forçar a reconstrução do PageView
+                // quando as condições de exibição das páginas mudam.
+                final Key pageViewKey = ValueKey(
+                    'pageView_${userManager.adminEnabled}_${userManager.userapp?.companyID ?? 'no_company'}');
+
+                // Lista fixa de páginas para o menu inferior
+                final List<Widget> paginasFixas = [
+                  HomeScreen(), // 0
+                  OrdersScreen(), // 1
+                  EventsScreen(), // 2
+                  HotelsScreen(), // 3
+                  ScreenPet(), // 4
+                  UserScreen(), // 5
+                  NotificationsScreen(), // 6
+                  MySearchPageNew(), // 7
+                ];
+                return PageView(
+                  key: pageViewKey,
+                  controller: pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: paginasFixas,
+                  onPageChanged: (pageIndex) {
+                    setPaginaAtual(pageIndex);
+                  },
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }
@@ -425,29 +455,6 @@ class _BaseScreenState extends State<BaseScreen> {
       } else {
         paginaAtual = pagina;
       }
-      btnav = CurvedNavigationBar(
-        buttonBackgroundColor: Colors.white,
-        index: paginaAtual,
-        animationCurve: Curves.easeInOut,
-        animationDuration: const Duration(milliseconds: 300),
-        backgroundColor: Color.fromARGB(255, 255, 161, 0),
-        items: const [
-          Icon(Icons.home),
-          Icon(Icons.shopify),
-          Icon(Icons.calendar_today),
-          Icon(Icons.hotel),
-          Icon(Icons.pets_sharp),
-          Icon(Icons.person),
-          Icon(Icons.notification_important),
-          Icon(Icons.search),
-        ],
-        onTap: (pageIndex) {
-          if (pageIndex >= 0 && pageIndex < numPaginasFixas) {
-            context.read<PageManager>().setPage(pageIndex);
-            context.read<NotificationsManager>().stNotificnolido();
-          }
-        },
-      );
     });
   }
 }
