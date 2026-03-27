@@ -11,7 +11,6 @@ import 'package:fouryoupet/common/order/chat/widgets/message_tile.dart';
 import 'package:fouryoupet/models/order/orders_manager.dart';
 import 'package:provider/provider.dart';
 
-
 class ChatPage extends StatefulWidget {
   final String groupId;
 
@@ -203,7 +202,7 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-sendMessage(List<String>? userToken) async {
+  sendMessage(List<String>? userToken) async {
     if (messageController.text.isNotEmpty) {
       Map<String, dynamic> chatMessageMap = {
         "message": messageController.text,
@@ -228,18 +227,20 @@ sendMessage(List<String>? userToken) async {
         final callable =
             FirebaseFunctions.instance.httpsCallable('sendChatNotification');
         for (final token in userToken) {
-          callable.call(<String, dynamic>{
-            'token': token,
-            'title': 'Nova mensagem do pedido ${widget.groupId}',
-            'body': chatMessageMap['message'].toString(),
-            'data': {
-              'name': chatMessageMap['sender'] ?? '',
-              'click_action': chatMessageMap['click'] ?? '',
-              'type': chatMessageMap['type'] ?? '',
-            },
-          }).catchError((dynamic e) {
+          try {
+            await callable.call(<String, dynamic>{
+              'token': token,
+              'title': 'Nova mensagem do pedido ${widget.groupId}',
+              'body': chatMessageMap['message'].toString(),
+              'data': {
+                'name': chatMessageMap['sender'] ?? '',
+                'click_action': chatMessageMap['click'] ?? '',
+                'type': chatMessageMap['type'] ?? '',
+              },
+            });
+          } catch (e) {
             debugPrint('Erro ao enviar notificação: $e');
-          });
+          }
         }
       }
     }

@@ -1,4 +1,3 @@
-
 import 'package:brasil_fields/brasil_fields.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -205,7 +204,7 @@ class _ChatPageEventState extends State<ChatPageEvent> {
     );
   }
 
-sendMessage(List<String>? userToken) async {
+  sendMessage(List<String>? userToken) async {
     if (messageController.text.isNotEmpty) {
       Map<String, dynamic> chatMessageMap = {
         "message": messageController.text,
@@ -230,18 +229,20 @@ sendMessage(List<String>? userToken) async {
         final callable =
             FirebaseFunctions.instance.httpsCallable('sendChatNotification');
         for (final token in userToken) {
-          callable.call(<String, dynamic>{
-            'token': token,
-            'title': 'Mensagem de Agendamento',
-            'body': chatMessageMap['message'].toString(),
-            'data': {
-              'name': chatMessageMap['sender'] ?? '',
-              'click_action': chatMessageMap['click'] ?? '',
-              'type': chatMessageMap['type'] ?? '',
-            },
-          }).catchError((dynamic e) {
+          try {
+            await callable.call(<String, dynamic>{
+              'token': token,
+              'title': 'Mensagem de Agendamento',
+              'body': chatMessageMap['message'].toString(),
+              'data': {
+                'name': chatMessageMap['sender'] ?? '',
+                'click_action': chatMessageMap['click'] ?? '',
+                'type': chatMessageMap['type'] ?? '',
+              },
+            });
+          } catch (e) {
             debugPrint('Erro ao enviar notificação: $e');
-          });
+          }
         }
       }
     }

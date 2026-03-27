@@ -270,30 +270,28 @@ class _EventScreenState extends State<EventScreen> {
                                               .userID
                                               .toString());
                                     } else {
+                                      final userId = await context
+                                              .read<UserManager>()
+                                              .findUserByCompanyID(eventProvider
+                                                  .events[eventProvider.events
+                                                      .indexOf(evnt)]
+                                                  .companyID) ??
+                                          '';
                                       tk = await context
                                           .read<UserManager>()
-                                          .getToken(context
-                                                  .read<UserManager>()
-                                                  .findUserByCompanyID(
-                                                      eventProvider
-                                                          .events[eventProvider
-                                                              .events
-                                                              .indexOf(evnt)]
-                                                          .companyID) ??
-                                              '');
+                                          .getToken(userId);
                                     }
                                   } else {
+                                    final userId = await context
+                                            .read<UserManager>()
+                                            .findUserByCompanyID(eventProvider
+                                                .events[eventProvider.events
+                                                    .indexOf(evnt)]
+                                                .companyID) ??
+                                        '';
                                     tk = await context
                                         .read<UserManager>()
-                                        .getToken(context
-                                                .read<UserManager>()
-                                                .findUserByCompanyID(
-                                                    eventProvider
-                                                        .events[eventProvider
-                                                            .events
-                                                            .indexOf(evnt)]
-                                                        .companyID) ??
-                                            '');
+                                        .getToken(userId);
                                   }
 
                                   Navigator.push(

@@ -3,6 +3,7 @@ import 'package:fouryoupet/models/accommodation/accommodation_manager.dart';
 import 'package:fouryoupet/models/company/company_manager.dart';
 import 'package:fouryoupet/models/hotel/hotel.dart';
 import 'package:fouryoupet/models/user/user_manager.dart';
+import 'package:fouryoupet/models/user/userapp.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/src/provider.dart';
 
@@ -21,12 +22,18 @@ class HotelTile extends StatefulWidget {
 class _HotelTileState extends State<HotelTile> {
   String companyname = '';
   CompanyManager companyManager = CompanyManager();
+  Userapp? _userapp;
 
   @override
   void initState() {
     companyname =
         companyManager.findCompanyByID(widget.hotel.companyID)?.name ?? '';
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final user =
+          await context.read<UserManager>().findUserByID(widget.hotel.userID);
+      if (mounted) setState(() => _userapp = user);
+    });
   }
 
   @override
@@ -36,9 +43,6 @@ class _HotelTileState extends State<HotelTile> {
         .findAccommodationByID(widget.hotel.accid)
         ?.name;
     final primaryColor = Theme.of(context).primaryColor;
-
-    final userapp =
-        context.read<UserManager>().findUserByID(widget.hotel.userID);
     final formatter =
         NumberFormat.currency(locale: 'pt_BR', symbol: "", decimalDigits: 2);
     DateTime? dtaini = widget.hotel.ini_date;
@@ -66,7 +70,7 @@ class _HotelTileState extends State<HotelTile> {
                     ),
                   ),
                 Text(
-                  userapp?.name?.toUpperCase() ?? '',
+                  _userapp?.name?.toUpperCase() ?? '',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: primaryColor,

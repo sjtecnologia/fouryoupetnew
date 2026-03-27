@@ -386,11 +386,6 @@ class UserManager extends ChangeNotifier {
     }
   }
 
-  Future<void> _findUserByCompanyID() async {
-    // Já não faz mais sentido carregar todos os usuários
-    // Use findUserByCompanyID() para queries específicas
-  }
-
   Future<String?> findUserByCompanyID(String? id) async {
     if (id == null) return null;
     try {

@@ -59,3 +59,4 @@ firebase.json
 *-cf6f89d34732.json
 AuthKey_*.p8
 upload_certificate.pem
+.env

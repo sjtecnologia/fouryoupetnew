@@ -196,16 +196,17 @@ class _BaseScreenState extends State<BaseScreen> {
                   .read<UserManager>()
                   .getToken(od.first.userId.toString());
             } else {
-              tk = await context.read<UserManager>().getToken(context
+              final userId = await context
                       .read<UserManager>()
                       .findUserByCompanyID(od.first.companyID) ??
-                  '');
+                  '';
+              tk = await context.read<UserManager>().getToken(userId);
             }
           } else {
-            tk = await context.read<UserManager>().getToken(context
-                    .read<UserManager>()
-                    .findUserByCompanyID(od.first.companyID) ??
-                '');
+            final userId = await context
+                .read<UserManager>()
+                .findUserByCompanyID(od.first.companyID);
+            tk = await context.read<UserManager>().getToken(userId ?? '');
           }
 
           Navigator.push(
@@ -234,16 +235,18 @@ class _BaseScreenState extends State<BaseScreen> {
                   .read<UserManager>()
                   .getToken(od.first.userID.toString());
             } else {
-              tk = await context.read<UserManager>().getToken(context
+              final userId = await context
                       .read<UserManager>()
                       .findUserByCompanyID(od.first.companyID) ??
-                  '');
+                  '';
+              tk = await context.read<UserManager>().getToken(userId);
             }
           } else {
-            tk = await context.read<UserManager>().getToken(context
+            final userId = await context
                     .read<UserManager>()
                     .findUserByCompanyID(od.first.companyID) ??
-                '');
+                '';
+            tk = await context.read<UserManager>().getToken(userId);
           }
 
           Navigator.push(
@@ -281,16 +284,18 @@ class _BaseScreenState extends State<BaseScreen> {
                 .read<UserManager>()
                 .getToken(od.first.userId.toString());
           } else {
-            tk = await context.read<UserManager>().getToken(context
+            final userId = await context
                     .read<UserManager>()
                     .findUserByCompanyID(od.first.companyID) ??
-                '');
+                '';
+            tk = await context.read<UserManager>().getToken(userId);
           }
         } else {
-          tk = await context.read<UserManager>().getToken(context
+          final userId = await context
                   .read<UserManager>()
                   .findUserByCompanyID(od.first.companyID) ??
-              '');
+              '';
+          tk = await context.read<UserManager>().getToken(userId);
         }
 
         Navigator.push(

@@ -129,32 +129,32 @@ class _EventTileState extends State<EventTile> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-                if(vlr_discount > 0)
-                Text(
-                  'Desconto: R\$ ${formatter.format(vlr_discount)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.red.shade900,
-                    fontSize: 18,
+                if (vlr_discount > 0)
+                  Text(
+                    'Desconto: R\$ ${formatter.format(vlr_discount)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.red.shade900,
+                      fontSize: 18,
+                    ),
                   ),
-                ),
                 Text(
-                  'Valor: R\$ ${formatter.format(widget.event.price! )}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.green.shade900,
-                    fontSize: 18,
-                  ),
-                ),
-                if(vlr_discount > 0)
-                Text(
-                  'Total: R\$ ${formatter.format(widget.event.price! - vlr_discount)}',
+                  'Valor: R\$ ${formatter.format(widget.event.price!)}',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: Colors.green.shade900,
                     fontSize: 18,
                   ),
                 ),
+                if (vlr_discount > 0)
+                  Text(
+                    'Total: R\$ ${formatter.format(widget.event.price! - vlr_discount)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green.shade900,
+                      fontSize: 18,
+                    ),
+                  ),
                 Text(
                   widget.event.statusText.toUpperCase(),
                   textAlign: TextAlign.right,
@@ -179,16 +179,18 @@ class _EventTileState extends State<EventTile> with TickerProviderStateMixin {
                         .read<UserManager>()
                         .getToken(widget.event.userID.toString());
                   } else {
-                    tk = await context.read<UserManager>().getToken(context
+                    final userId = await context
                             .read<UserManager>()
                             .findUserByCompanyID(widget.event.companyID) ??
-                        '');
+                        '';
+                    tk = await context.read<UserManager>().getToken(userId);
                   }
                 } else {
-                  tk = await context.read<UserManager>().getToken(context
+                  final userId = await context
                           .read<UserManager>()
                           .findUserByCompanyID(widget.event.companyID) ??
-                      '');
+                      '';
+                  tk = await context.read<UserManager>().getToken(userId);
                 }
 
                 Navigator.push(

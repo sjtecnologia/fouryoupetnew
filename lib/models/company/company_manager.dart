@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:fouryoupet/models/address/address.dart';
 import 'package:fouryoupet/models/user/userapp.dart';
 import 'package:geolocator/geolocator.dart';

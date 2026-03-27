@@ -1,15 +1,14 @@
-/// Configurações e constantes da aplicação 4YouPet
-/// IMPORTANTE: Essas credenciais deveriam estar em variáveis de ambiente
-/// Para produção, mover para firebase_options.dart ou usar flutter_dotenv
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-/// ⚠️ CRÍTICO: CepAberto API Token
-/// TODO: Mover para firebase_options.dart ou flutter_dotenv
-const String CEPABERTO_TOKEN = 'af993c96dea311cf096dae3ed5caae07';
+/// Constantes da aplicação 4YouPet — carregadas do arquivo .env
+String get CEPABERTO_TOKEN =>
+    dotenv.env['CEPABERTO_TOKEN'] ?? '';
 
-/// ⚠️ EmailJS Credentials
-/// TODO: Mover para firebase_options.dart ou flutter_dotenv
 class EmailJSConfig {
-  static const String serviceId = 'service_wcl4vac';
-  static const String templateId = 'template_0yonq5r';
-  static const String publicKey = 'LZZAWcGCTw-3r3wdk';
+  static String get serviceId =>
+      dotenv.env['EMAILJS_SERVICE_ID'] ?? '';
+  static String get templateId =>
+      dotenv.env['EMAILJS_TEMPLATE_ID'] ?? '';
+  static String get publicKey =>
+      dotenv.env['EMAILJS_PUBLIC_KEY'] ?? '';
 }
