@@ -1,9 +1,8 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:fouryoupet/config/api_constants.dart';
 import 'package:fouryoupet/models/address/cepaberto_address.dart';
-
-const token = 'af993c96dea311cf096dae3ed5caae07';
 
 class CepAbertoService {
   Future<CepAbertoAddress> getAddressFromCep(String cep) async {
@@ -12,7 +11,8 @@ class CepAbertoService {
 
     final Dio dio = Dio();
 
-    dio.options.headers[HttpHeaders.authorizationHeader] = 'Token token=$token';
+    dio.options.headers[HttpHeaders.authorizationHeader] =
+        'Token token=$CEPABERTO_TOKEN';
 
     try {
       final response = await dio.get<Map<String, dynamic>>(endpint);

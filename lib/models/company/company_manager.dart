@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:fouryoupet/models/address/address.dart';
 import 'package:fouryoupet/models/user/userapp.dart';
 import 'package:geolocator/geolocator.dart';
@@ -33,7 +34,7 @@ class CompanyManager extends ChangeNotifier {
       company = updatedCompany;
       notifyListeners();
     } catch (e) {
-      print('Erro ao atualizar empresa: $e');
+      debugPrint('Erro ao atualizar empresa: $e');
       rethrow;
     }
   }
@@ -158,12 +159,12 @@ class CompanyManager extends ChangeNotifier {
       if (companyName != null) {
         final keywords = _generateKeywords(companyName);
         await doc.reference.update({'keywords': keywords});
-        print('Documento ${doc.id} atualizado com sucesso!');
+        debugPrint('Documento ${doc.id} atualizado com sucesso!');
       } else {
-        print('Nome do company não encontrado no documento ${doc.id}');
+        debugPrint('Nome do company não encontrado no documento ${doc.id}');
       }
     }
-    print('Atualização concluída!');
+    debugPrint('Atualização concluída!');
   }
 
   Future<void> removeAddress() async {
@@ -324,7 +325,7 @@ class CompanyManager extends ChangeNotifier {
                                   homeclic: homeclic,
                                 )));
                   } else {
-                    print(
+                    debugPrint(
                         'Erro: Contexto do Navigator não disponível para navegação.');
                   }
                 },
@@ -337,7 +338,7 @@ class CompanyManager extends ChangeNotifier {
       }
     } catch (e, stack) {
       _errorMessage = 'Erro ao carregar empresas: $e';
-      print('Erro ao carregar empresas: $e\n$stack');
+      debugPrint('Erro ao carregar empresas: $e\n$stack');
       _allCompany = [];
     } finally {
       _isCompanyListLoading = false;
@@ -386,7 +387,7 @@ class CompanyManager extends ChangeNotifier {
 
       return data;
     } catch (e) {
-      print('Erro ao verificar status da assinatura: $e');
+      debugPrint('Erro ao verificar status da assinatura: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -404,7 +405,7 @@ class CompanyManager extends ChangeNotifier {
       // Verificar se o serviço de localização está habilitado
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        print('Serviço de localização desabilitado');
+        debugPrint('Serviço de localização desabilitado');
         // Adicionar todas as empresas se localização não estiver disponível
         destinationList.addAll(sourceCompanies);
         return;
@@ -415,7 +416,7 @@ class CompanyManager extends ChangeNotifier {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          print('Permissão de localização negada');
+          debugPrint('Permissão de localização negada');
           // Adicionar todas as empresas se permissão for negada
           destinationList.addAll(sourceCompanies);
           return;
@@ -423,7 +424,7 @@ class CompanyManager extends ChangeNotifier {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        print('Permissão de localização negada permanentemente');
+        debugPrint('Permissão de localização negada permanentemente');
         // Adicionar todas as empresas se permissão for negada permanentemente
         destinationList.addAll(sourceCompanies);
         return;
@@ -455,7 +456,7 @@ class CompanyManager extends ChangeNotifier {
     } catch (e) {
       _errorMessage =
           'Erro ao obter localização atual para filtrar empresas: $e';
-      print('Erro ao obter localização atual: $e');
+      debugPrint('Erro ao obter localização atual: $e');
       // Se não conseguir a localização, adicionar todas as empresas
       destinationList.addAll(sourceCompanies);
     }
@@ -550,7 +551,7 @@ class CompanyManager extends ChangeNotifier {
       }
     } catch (e) {
       erro = e.toString();
-      print(erro);
+      debugPrint(erro);
     }
     notifyListeners();
   }
@@ -561,7 +562,7 @@ class CompanyManager extends ChangeNotifier {
       lpermissao = lperm.name;
     } catch (e) {
       erro = e.toString();
-      print(erro);
+      debugPrint(erro);
     }
     notifyListeners();
   }

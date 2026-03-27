@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:fouryoupet/models/cart/cart_manager.dart';
 import 'package:fouryoupet/models/product/product.dart';
 import 'package:fouryoupet/services/ceilo_payment.dart';
@@ -137,9 +138,9 @@ class CheckoutManager extends ChangeNotifier {
         },
       );
 
-      print('✅ $points pontos adicionados ao programa de fidelidade');
+      debugPrint('✅ $points pontos adicionados ao programa de fidelidade');
     } catch (e) {
-      print('⚠️ Erro ao adicionar pontos de fidelidade: $e');
+      debugPrint('⚠️ Erro ao adicionar pontos de fidelidade: $e');
       // Não interrompe o checkout se falhar ao adicionar pontos
     }
   }
@@ -172,9 +173,9 @@ class CheckoutManager extends ChangeNotifier {
         orderId: orderId,
       );
 
-      print('✅ Indicação processada para primeira compra');
+      debugPrint('✅ Indicação processada para primeira compra');
     } catch (e) {
-      print('⚠️ Erro ao processar indicação: $e');
+      debugPrint('⚠️ Erro ao processar indicação: $e');
       // Não interrompe o checkout se falhar
     }
   }

@@ -370,31 +370,39 @@ class UserManager extends ChangeNotifier {
   }
 
   Future<void> _findUserByID() async {
-    final QuerySnapshot snapProducts =
-        await firestore.collection('users').get();
-    alluser = snapProducts.docs.map((d) => Userapp.fromDocument(d)).toList();
+    // Já não faz mais sentido carregar todos os usuários
+    // Use findUserByID() para queries específicas
   }
 
-  Userapp? findUserByID(String? id) {
-    if (alluser.isEmpty) _findUserByID();
+  Future<Userapp?> findUserByID(String? id) async {
+    if (id == null) return null;
     try {
-      return alluser.firstWhere((c) => c.id == id);
+      final doc = await firestore.collection('users').doc(id).get();
+      if (!doc.exists) return null;
+      return Userapp.fromDocument(doc);
     } catch (e) {
+      debugPrint('Erro ao buscar usuário por ID: $e');
       return null;
     }
   }
 
   Future<void> _findUserByCompanyID() async {
-    final QuerySnapshot snapProducts =
-        await firestore.collection('users').get();
-    alluser = snapProducts.docs.map((d) => Userapp.fromDocument(d)).toList();
+    // Já não faz mais sentido carregar todos os usuários
+    // Use findUserByCompanyID() para queries específicas
   }
 
-  String? findUserByCompanyID(String? id) {
-    if (alluser.isEmpty) _findUserByCompanyID();
+  Future<String?> findUserByCompanyID(String? id) async {
+    if (id == null) return null;
     try {
-      return alluser.firstWhere((c) => c.companyID == id).id;
+      final snapQuery = await firestore
+          .collection('users')
+          .where('companyID', isEqualTo: id)
+          .limit(1)
+          .get();
+      if (snapQuery.docs.isEmpty) return null;
+      return snapQuery.docs.first.id;
     } catch (e) {
+      debugPrint('Erro ao buscar usuário por companyID: $e');
       return null;
     }
   }

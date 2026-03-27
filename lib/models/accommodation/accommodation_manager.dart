@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:fouryoupet/models/accommodation/accommodation.dart';
 import 'package:fouryoupet/models/hotel/hotel.dart';
 
@@ -48,7 +49,7 @@ class AccommodationManager extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      print('Erro ao buscar accommodations: $e');
+      debugPrint('Erro ao buscar accommodations: $e');
     }
   }
 
@@ -118,13 +119,13 @@ class AccommodationManager extends ChangeNotifier {
         // Atualiza o documento com as keywords
         await doc.reference.update({'keywords': keywords});
 
-        print('Documento ${doc.id} atualizado com sucesso!');
+        debugPrint('Documento ${doc.id} atualizado com sucesso!');
       } else {
-        print('Nome do accommodation não encontrado no documento ${doc.id}');
+        debugPrint('Nome do accommodation não encontrado no documento ${doc.id}');
       }
     }
 
-    print('Atualização concluída!');
+    debugPrint('Atualização concluída!');
   }
 
   String? get categoryid => _categoryid;

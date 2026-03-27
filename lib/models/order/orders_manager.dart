@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:fouryoupet/models/user/userapp.dart';
 import 'order.dart' as od;
 
@@ -79,7 +80,7 @@ class OrdersManager extends ChangeNotifier {
       }
     }
 
-    print('Campos "lido" adicionados aos documentos existentes.');
+    debugPrint('Campos "lido" adicionados aos documentos existentes.');
   }
 
   // getting the chats

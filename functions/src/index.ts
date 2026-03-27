@@ -7,12 +7,12 @@ import { getMessaging, AndroidConfig } from "firebase-admin/messaging";
 import { onCall, HttpsError, onRequest } from 'firebase-functions/v2/https';
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { setGlobalOptions } from "firebase-functions/v2";
+import { defineSecret } from "firebase-functions/params";
 
 
 
 import { logger } from "firebase-functions/v2";
 import axios from "axios";
-import { count } from "console";
 
 
 
@@ -30,6 +30,27 @@ const app = initializeApp();
 // Obtenha referências aos serviços
 const db = getFirestore(app);
 const messaging = getMessaging(app);
+const PAGBANK_TOKEN_SECRET = defineSecret("PAGBANK_TOKEN");
+const PAGBANK_WEBHOOK_TOKEN_SECRET = defineSecret("PAGBANK_WEBHOOK_TOKEN");
+
+function getPagBankAuthorizationHeader(token: string): string {
+  return token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+}
+
+function sanitizePagBankErrorData(data: any) {
+  if (!data) return undefined;
+
+  return {
+    message: data.message,
+    error: data.error,
+    error_messages: Array.isArray(data.error_messages)
+      ? data.error_messages.map((item: any) => ({
+          code: item?.code,
+          description: item?.description || item?.message,
+        }))
+      : undefined,
+  };
+}
 
 /**
  * Cloud Function para obter os dados de um usuário autenticado.
@@ -83,15 +104,29 @@ export const getUserData = onCall({
  * @throws {Error} Se ocorrer um erro ao adicionar a mensagem ao Firestore.
  */
 export const addMessage = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Usuário deve estar autenticado');
+  }
+
   const { data } = request;
-  logger.log('Dados recebidos em addMessage:', data);
+
+  if (!data || typeof data !== 'object') {
+    throw new HttpsError('invalid-argument', 'Dados inválidos');
+  }
+
+  const messageData = {
+    ...data,
+    userId: request.auth.uid,
+    createdAt: FieldValue.serverTimestamp(),
+  };
+
   try {
-    const snapshot = await db.collection("messages").add(data);
+    const snapshot = await db.collection("messages").add(messageData);
     logger.log('Mensagem adicionada com sucesso com ID:', snapshot.id);
     return { "success": snapshot.id };
   } catch (error: any) {
     logger.error('Erro ao adicionar mensagem:', error);
-    throw new Error('Falha ao adicionar mensagem.');
+    throw new HttpsError('internal', 'Falha ao adicionar mensagem.');
   }
 });
 
@@ -316,9 +351,10 @@ export const createPagBankSubscription = onCall(
   {
     timeoutSeconds: 60,
     memory: '256MiB',
+    secrets: [PAGBANK_TOKEN_SECRET],
   },
   async (request) => {
-    logger.info('Iniciando createPagBankSubscription', { data: request.data });
+    logger.info('Iniciando createPagBankSubscription');
     
     try {
       const { 
@@ -333,7 +369,7 @@ export const createPagBankSubscription = onCall(
 
       // Validar dados obrigatórios
       if (!companyId || !encryptedCard || !cardHolder || !cpf || !phone || !address || !security_code) {
-        logger.error('Dados incompletos recebidos:', request.data);
+        logger.error('Dados incompletos recebidos em createPagBankSubscription');
         throw new HttpsError('invalid-argument', 'Dados incompletos para criar assinatura');
       }
 
@@ -351,9 +387,10 @@ export const createPagBankSubscription = onCall(
       // Formatar telefone (remover caracteres especiais)
       const phoneClean = phone.replace(/\D/g, '');
 
-      // IMPORTANTE: Use seu token real aqui
-      const pagBankToken = 'eeefc8b5-e621-4d7a-81f0-7c700ccda1fa04a4bb7e4d1cbcc67e0414ee19f32c9675f1-7515-492b-9309-7fac3a1740ed';
-      const isSandbox = false;
+      const pagBankToken = PAGBANK_TOKEN_SECRET.value();
+      if (!pagBankToken) {
+        throw new HttpsError('internal', 'Token PagBank não configurado');
+      }
 
       const baseUrl = 'https://api.assinaturas.pagseguro.com';
 
@@ -431,20 +468,17 @@ export const createPagBankSubscription = onCall(
         // === GERAÇÃO DO LOG PARA HOMOLOGAÇÃO COM DADOS COMPLETOS ===
         const requestHeaders = {
           'accept': 'application/json',
-          'Authorization': pagBankToken,
+          'Authorization': getPagBankAuthorizationHeader(pagBankToken),
           'content-type': 'application/json'
         };
 
-        // === LOG ESTRUTURADO PARA HOMOLOGAÇÃO ===
-        logger.info('=== REQUISIÇÃO HTTP PARA PAGBANK - DADOS PARA HOMOLOGAÇÃO ===', {
+        logger.info('Preparando requisição de assinatura PagBank', {
           timestamp: new Date().toISOString(),
-          environment: isSandbox ? 'SANDBOX' : 'PRODUCTION',
+          environment: 'PRODUCTION',
           endpoint: {
             url: requestUrl,
             method: 'POST'
           },
-          headers: requestHeaders,
-          payload: subscriptionData,
           metadata: {
             company_id: companyId,
             plan_id: 'PLAN_633F2BAF-4FE1-4EE7-A1EE-C317E782F086',
@@ -452,18 +486,6 @@ export const createPagBankSubscription = onCall(
             reference_id: subscriptionData.reference_id
           }
         });
-
-        // === LOG ADICIONAL EM FORMATO CURL PARA FACILITAR TESTES ===
-        const curlCommand = `curl -X POST "${requestUrl}" \
-  -H "accept: application/json" \
-  -H "Authorization: ${pagBankToken}" \
-  -H "content-type: application/json" \
-  -d '${JSON.stringify(subscriptionData, null, 2)}'`;
-        
-        logger.info('=== COMANDO CURL EQUIVALENTE ===', {
-          curl_command: curlCommand
-        });
-        // === FIM DA GERAÇÃO DO LOG ===
 
         logger.info('Enviando requisição para PagBank...');
 
@@ -477,7 +499,11 @@ export const createPagBankSubscription = onCall(
 
         logger.info('========== RESPOSTA DA ASSINATURA ==========');
         logger.info('Status:', subscriptionResponse.status);
-        logger.info('Data:', JSON.stringify(subscriptionResponse.data, null, 2));
+        logger.info('Assinatura criada no PagBank', {
+          subscriptionId: subscriptionResponse.data?.id,
+          status: subscriptionResponse.data?.status,
+          customerId: subscriptionResponse.data?.customer?.id,
+        });
 
         // Atualizar empresa com dados da assinatura
         await db.collection('companys').doc(companyId).update({
@@ -502,8 +528,11 @@ export const createPagBankSubscription = onCall(
         if (axiosError.response) {
           logger.error('Status:', axiosError.response.status);
           logger.error('Status Text:', axiosError.response.statusText);
-          logger.error('Headers:', JSON.stringify(axiosError.response.headers, null, 2));
-          logger.error('Data:', JSON.stringify(axiosError.response.data, null, 2));
+          logger.error('Erro retornado pelo PagBank', {
+            status: axiosError.response.status,
+            statusText: axiosError.response.statusText,
+            data: sanitizePagBankErrorData(axiosError.response.data),
+          });
           
           // Tratamento específico de erros do PagBank
           const errorData = axiosError.response.data;
@@ -552,14 +581,16 @@ export const getPagBankPublicKey = onCall(
   {
     timeoutSeconds: 30,
     memory: '128MiB',
+    secrets: [PAGBANK_TOKEN_SECRET],
   },
   async (request) => {
     logger.info('Obtendo chave pública do PagBank');
     
     try {
-      // IMPORTANTE: Use seu token real aqui
-      const pagBankToken =  'Bearer eeefc8b5-e621-4d7a-81f0-7c700ccda1fa04a4bb7e4d1cbcc67e0414ee19f32c9675f1-7515-492b-9309-7fac3a1740ed';
-      const isSandbox = false;
+      const pagBankToken = PAGBANK_TOKEN_SECRET.value();
+      if (!pagBankToken) {
+        throw new HttpsError('internal', 'Token PagBank não configurado');
+      }
 
       const baseUrl = 'https://api.assinaturas.pagseguro.com';
 
@@ -568,7 +599,7 @@ export const getPagBankPublicKey = onCall(
         {
           headers: {
             'accept': 'application/json',
-            'Authorization': pagBankToken,
+            'Authorization': getPagBankAuthorizationHeader(pagBankToken),
             'Content-Type': 'application/json'
           }
         }
@@ -737,12 +768,11 @@ export const pagBankWebhook = onRequest(
   {
     timeoutSeconds: 60,
     memory: '256MiB',
+    secrets: [PAGBANK_WEBHOOK_TOKEN_SECRET],
   },
   async (request, response) => {
     logger.info('=== WEBHOOK PAGBANK RECEBIDO ===');
     logger.info('Method:', request.method);
-    logger.info('Headers:', JSON.stringify(request.headers));
-    logger.info('Body:', JSON.stringify(request.body));
 
     try {
       // Verificar se é POST
@@ -753,7 +783,14 @@ export const pagBankWebhook = onRequest(
 
       // Validar a origem (opcional mas recomendado)
       const token = request.headers['x-webhook-token'];
-      if (token !== 'bae6222d6e2ee8be860f727c16f86df0efdaf2d5d07f2411031c5b51a3e65790') {
+      const webhookToken = PAGBANK_WEBHOOK_TOKEN_SECRET.value();
+      if (!webhookToken) {
+        logger.error('Token de webhook do PagBank não configurado');
+        response.status(500).send('Webhook token not configured');
+        return;
+      }
+
+      if (token !== webhookToken) {
         response.status(401).send('Unauthorized');
         return;
       }
@@ -860,6 +897,7 @@ export const checkSubscriptionStatus = onCall(
   {
     timeoutSeconds: 30,
     memory: '128MiB',
+    secrets: [PAGBANK_TOKEN_SECRET],
   },
   async (request) => {
     logger.info('=== VERIFICANDO STATUS DA ASSINATURA ===');
@@ -884,8 +922,10 @@ export const checkSubscriptionStatus = onCall(
         throw new HttpsError('not-found', 'Empresa sem assinatura');
       }
 
-      // Token do PagBank
-      const token = 'eeefc8b5-e621-4d7a-81f0-7c700ccda1fa04a4bb7e4d1cbcc67e0414ee19f32c9675f1-7515-492b-9309-7fac3a1740ed';
+      const token = PAGBANK_TOKEN_SECRET.value();
+      if (!token) {
+        throw new HttpsError('internal', 'Token PagBank não configurado');
+      }
       
       // URL da API
       const url = `https://api.assinaturas.pagseguro.com/subscriptions/${subscriptionId}`;
@@ -897,12 +937,15 @@ export const checkSubscriptionStatus = onCall(
       const response = await axios.get(url, {
         headers: {
           'accept': 'application/json',
-          'Authorization': 'eeefc8b5-e621-4d7a-81f0-7c700ccda1fa04a4bb7e4d1cbcc67e0414ee19f32c9675f1-7515-492b-9309-7fac3a1740ed'
+          'Authorization': getPagBankAuthorizationHeader(token)
         }
       });
       
 
-      logger.info('Resposta do PagBank:', JSON.stringify(response.data));
+      logger.info('Resposta de status da assinatura recebida', {
+        subscriptionId,
+        status: response.data?.status,
+      });
 
       // Mapear status
       let appStatus = 'INACTIVE';
@@ -965,9 +1008,10 @@ export const createPagBankPlan = onCall(
   {
     timeoutSeconds: 60,
     memory: '256MiB',
+    secrets: [PAGBANK_TOKEN_SECRET],
   },
   async (request) => {
-    logger.info('Iniciando createPagBankPlan', { data: request.data });
+    logger.info('Iniciando createPagBankPlan');
     
     try {
       // Verificação de autenticação (opcional - remova se não precisar)
@@ -1015,10 +1059,10 @@ export const createPagBankPlan = onCall(
         throw new HttpsError('invalid-argument', 'Comprimento do intervalo deve ser maior que zero');
       }
 
-      // Token do PagBank - IMPORTANTE: Configure como variável de ambiente
-      const pagBankToken = 'eeefc8b5-e621-4d7a-81f0-7c700ccda1fa04a4bb7e4d1cbcc67e0414ee19f32c9675f1-7515-492b-9309-7fac3a1740ed';
-      
-      const isSandbox =  false;
+      const pagBankToken = PAGBANK_TOKEN_SECRET.value();
+      if (!pagBankToken) {
+        throw new HttpsError('internal', 'Token PagBank não configurado');
+      }
       
       const baseUrl = 'https://api.assinaturas.pagseguro.com';
 
@@ -1047,31 +1091,23 @@ export const createPagBankPlan = onCall(
       const requestUrl = `${baseUrl}/plans`;
       const requestHeaders = {
         'accept': 'application/json',
-        'Authorization': pagBankToken,
+        'Authorization': getPagBankAuthorizationHeader(pagBankToken),
         'content-type': 'application/json'
       };
 
-      // === LOG PARA HOMOLOGAÇÃO ===
-      logger.info('=== CRIAÇÃO DE PLANO PAGBANK - DADOS PARA HOMOLOGAÇÃO ===', {
+      logger.info('Preparando criação de plano PagBank', {
         timestamp: new Date().toISOString(),
         environment: 'PRODUCTION',
         endpoint: {
           url: requestUrl,
           method: 'POST'
         },
-        headers: requestHeaders,
-        payload: planData
-      });
-
-      // === COMANDO CURL PARA TESTES ===
-      const curlCommand = `curl -X POST "${requestUrl}" \
-  -H "accept: application/json" \
-  -H "Authorization: ${pagBankToken}" \
-  -H "content-type: application/json" \
-  -d '${JSON.stringify(planData, null, 2)}'`;
-      
-      logger.info('=== COMANDO CURL EQUIVALENTE ===', {
-        curl_command: curlCommand
+        metadata: {
+          reference_id: planData.reference_id,
+          interval_unit: planData.interval.unit,
+          interval_length: planData.interval.length,
+          payment_methods: planData.payment_method,
+        }
       });
 
       logger.info('Enviando requisição para criar plano no PagBank...');
@@ -1088,7 +1124,11 @@ export const createPagBankPlan = onCall(
 
         logger.info('========== PLANO CRIADO COM SUCESSO ==========');
         logger.info('Status:', response.status);
-        logger.info('Plano criado:', JSON.stringify(response.data, null, 2));
+        logger.info('Plano criado no PagBank', {
+          planId: response.data?.id,
+          status: response.data?.status,
+          referenceId: response.data?.reference_id,
+        });
 
         // // Opcional: Salvar o plano no Firestore para controle interno
         // if (response.data.id) {
@@ -1119,8 +1159,11 @@ export const createPagBankPlan = onCall(
         if (axiosError.response) {
           logger.error('Status:', axiosError.response.status);
           logger.error('Status Text:', axiosError.response.statusText);
-          logger.error('Headers:', JSON.stringify(axiosError.response.headers, null, 2));
-          logger.error('Data:', JSON.stringify(axiosError.response.data, null, 2));
+          logger.error('Erro retornado pelo PagBank ao criar plano', {
+            status: axiosError.response.status,
+            statusText: axiosError.response.statusText,
+            data: sanitizePagBankErrorData(axiosError.response.data),
+          });
           
           // Tratamento específico de erros do PagBank
           const errorData = axiosError.response.data;
@@ -1176,13 +1219,63 @@ export const createPagBankPlan = onCall(
   }
 );
 
+/**
+ * Cloud Function para enviar notificação de chat via FCM.
+ * Substitui o envio direto via chave de service account no cliente.
+ * Requer autenticação do usuário.
+ */
+export const sendChatNotification = onCall(
+  {
+    timeoutSeconds: 30,
+    memory: '128MiB',
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Usuário deve estar autenticado');
+    }
+
+    const { token, title, body, data } = request.data;
+
+    if (!token || typeof token !== 'string' || token.trim() === '') {
+      throw new HttpsError('invalid-argument', 'Token FCM inválido');
+    }
+    if (!title || typeof title !== 'string') {
+      throw new HttpsError('invalid-argument', 'Título da notificação inválido');
+    }
+    if (!body || typeof body !== 'string') {
+      throw new HttpsError('invalid-argument', 'Corpo da notificação inválido');
+    }
+
+    // Sanitizar data: garantir que todos os valores sejam strings
+    const sanitizedData: Record<string, string> = {};
+    if (data && typeof data === 'object') {
+      for (const [key, value] of Object.entries(data)) {
+        sanitizedData[String(key)] = String(value ?? '');
+      }
+    }
+
+    try {
+      await messaging.send({
+        token: token.trim(),
+        notification: { title, body },
+        data: sanitizedData,
+      });
+      return { success: true };
+    } catch (error: any) {
+      logger.error('Erro ao enviar notificação de chat:', error);
+      throw new HttpsError('internal', 'Erro ao enviar notificação');
+    }
+  }
+);
+
 export const cancelPagBankSubscription = onCall(
   {
     timeoutSeconds: 30,
     memory: "128MiB",
+    secrets: [PAGBANK_TOKEN_SECRET],
   },
   async (request) => {
-    logger.info("Iniciando cancelPagBankSubscription", { data: request.data });
+    logger.info("Iniciando cancelPagBankSubscription");
 
     try {
       // Recebe o ID da assinatura via parâmetro
@@ -1196,10 +1289,9 @@ export const cancelPagBankSubscription = onCall(
         throw new HttpsError("invalid-argument", "CompanyID é obrigatório");
       }
 
-      // Pegue o token da configuração de ambiente do Firebase Functions
-      const PAGBANK_TOKEN = 'eeefc8b5-e621-4d7a-81f0-7c700ccda1fa04a4bb7e4d1cbcc67e0414ee19f32c9675f1-7515-492b-9309-7fac3a1740ed';
+      const pagBankToken = PAGBANK_TOKEN_SECRET.value();
 
-      if (!PAGBANK_TOKEN) {
+      if (!pagBankToken) {
         throw new HttpsError(
           "internal",
           "Token PagBank não configurado na variável de ambiente"
@@ -1212,13 +1304,10 @@ export const cancelPagBankSubscription = onCall(
 
       const headers = {
         accept: "application/json",
-        Authorization: `Bearer ${PAGBANK_TOKEN}`,
+        Authorization: getPagBankAuthorizationHeader(pagBankToken),
       };
 
-      logger.info("Enviando requisição para cancelamento", {
-        url,
-        headers,
-      });
+      logger.info("Enviando requisição para cancelamento", { url });
 
       // Executa requisição PUT para cancelar assinatura
       const response = await axios.put(url, {}, { headers });
