@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:transparent_image/transparent_image.dart';
 
 import '../../../models/product/product_manager.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 class ItemTile extends StatelessWidget {
   const ItemTile(this.item);
@@ -45,7 +46,7 @@ class ItemTile extends StatelessWidget {
                       content: product != null
                           ? ListTile(
                               contentPadding: EdgeInsets.zero,
-                              leading: Image.network(product.images!.first),
+                              leading: AppNetworkImage(imageUrl: product.images!.first, width: 56, height: 56),
                               title: Text(product.name!),
                               subtitle: Text(
                                   'R\$ ${formatter.format(product.basePrice)}'),

@@ -81,20 +81,20 @@ class _NewCompanyScreenState extends State<NewCompanyScreen> {
     final userManager = context.read<UserManager>();
     final companyId = userManager.userapp?.companyID;
 
-    print('CompanyID do usuário: $companyId'); // Debug
+    debugPrint('CompanyID do usuário: $companyId'); // Debug
 
     if (companyId != null && companyId.isNotEmpty) {
       try {
-        print('Buscando empresa com ID: $companyId'); // Debug
+        debugPrint('Buscando empresa com ID: $companyId'); // Debug
         final companyDoc = await FirebaseFirestore.instance
             .collection('companys')
             .doc(companyId)
             .get();
 
-        print('Documento encontrado: ${companyDoc.exists}'); // Debug
+        debugPrint('Documento encontrado: ${companyDoc.exists}'); // Debug
         if (companyDoc.exists) {
           final data = companyDoc.data() as Map<String, dynamic>;
-          print('Dados da empresa: ${data['name']}'); // Debug
+          debugPrint('Dados da empresa: ${data['name']}'); // Debug
           _companyId = companyId;
 
           setState(() {
@@ -140,13 +140,13 @@ class _NewCompanyScreenState extends State<NewCompanyScreen> {
             _isLoading = false;
           });
         } else {
-          print('Documento não existe no Firestore'); // Debug
+          debugPrint('Documento não existe no Firestore'); // Debug
           setState(() {
             _isLoading = false;
           });
         }
       } catch (e) {
-        print('Erro ao carregar dados da empresa: $e');
+        debugPrint('Erro ao carregar dados da empresa: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Erro ao carregar dados: $e')),
@@ -157,7 +157,7 @@ class _NewCompanyScreenState extends State<NewCompanyScreen> {
         });
       }
     } else {
-      print('Usuário sem companyID cadastrado'); // Debug
+      debugPrint('Usuário sem companyID cadastrado'); // Debug
       setState(() {
         _isLoading = false;
       });
@@ -352,7 +352,7 @@ class _NewCompanyScreenState extends State<NewCompanyScreen> {
         imageUrls.add(downloadURL);
       } catch (e) {
         // Trate erros de upload aqui
-        print('Erro ao fazer upload da imagem: $e');
+        debugPrint('Erro ao fazer upload da imagem: $e');
       }
     }
 
@@ -369,7 +369,7 @@ class _NewCompanyScreenState extends State<NewCompanyScreen> {
       final downloadURL = await uploadTask.ref.getDownloadURL();
       return downloadURL;
     } catch (e) {
-      print('Erro ao fazer upload do arquivo: $e');
+      debugPrint('Erro ao fazer upload do arquivo: $e');
       return null;
     }
   }
@@ -386,7 +386,7 @@ class _NewCompanyScreenState extends State<NewCompanyScreen> {
         final downloadURL = await uploadTask.ref.getDownloadURL();
         documentUrls.add(downloadURL);
       } catch (e) {
-        print('Erro ao fazer upload do documento: $e');
+        debugPrint('Erro ao fazer upload do documento: $e');
       }
     }
 

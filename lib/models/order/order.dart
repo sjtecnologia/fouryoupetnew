@@ -80,7 +80,7 @@ class Order {
     String? namecompany = company.name;
 
     try {
-      firestore.collection('orders').doc(orderId).set({
+      await firestore.collection('orders').doc(orderId).set({
         'items': items!.map((e) => e.toOrderItemMap()).toList(),
         'price': price,
         'frete': frete,
@@ -96,6 +96,7 @@ class Order {
       });
     } on Exception catch (e, s) {
       log('Erro ao gerar pedido', error: e, stackTrace: s);
+      rethrow;
     }
 
     String? subject = 'Novo Pedido';

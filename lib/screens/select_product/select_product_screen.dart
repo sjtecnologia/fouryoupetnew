@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/product/product_manager.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 class SelectProductScreen extends StatelessWidget {
   @override
@@ -24,7 +25,7 @@ class SelectProductScreen extends StatelessWidget {
             itemBuilder: (_, index) {
               final product = productManager.products[index];
               return ListTile(
-                leading: Image.network(product.images!.first),
+                leading: AppNetworkImage(imageUrl: product.images!.first, width: 56, height: 56),
                 title: Text(product.name!),
                 subtitle: Text('R\$ ${formatter.format(product.basePrice)}'),
                 onTap: () {

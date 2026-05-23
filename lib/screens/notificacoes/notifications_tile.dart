@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fouryoupet/models/notificatificacao/notifi.dart';
 import 'package:intl/intl.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 class NotificationsTile extends StatelessWidget {
   const NotificationsTile(this.notifications, {this.showControls = false});
@@ -33,10 +34,8 @@ class NotificationsTile extends StatelessWidget {
                     Container(
                       width: wd * .80,
                       child: Center(
-                        child: Image.network(
-                          notifications.image.toString(),
-                          // width: MediaQuery.of(context).size.width,
-                          // height: MediaQuery.of(context).size.height * .3,
+                        child: AppNetworkImage(
+                          imageUrl: notifications.image.toString(),
                         ),
                       ),
                     ),

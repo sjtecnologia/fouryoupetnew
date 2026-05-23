@@ -6,6 +6,7 @@ import '../../design_system/components/star_rating.dart';
 import '../../design_system/components/app_button.dart';
 import '../../models/review/review_manager.dart';
 import '../../models/review/review.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 /// Tela de avaliações de produto
 class ReviewsScreen extends StatefulWidget {
@@ -327,22 +328,12 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                       margin: const EdgeInsets.only(right: 8),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          review.images[index],
+                        child: AppNetworkImage(
+                          imageUrl: review.images[index],
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 80,
-                              height: 80,
-                              color: AppColors.surfaceVariant,
-                              child: const Icon(
-                                Icons.image_not_supported,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                            );
-                          },
+                          placeholderColor: AppColors.surfaceVariant,
                         ),
                       ),
                     );

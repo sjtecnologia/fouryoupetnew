@@ -169,7 +169,7 @@ class EventProvider extends ChangeNotifier {
       }
     }
 
-    print('Campos "lido" adicionados aos documentos existentes.');
+    debugPrint('Campos "lido" adicionados aos documentos existentes.');
   }
 
   Future<int?>? qtdMessage() async {

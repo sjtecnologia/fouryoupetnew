@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 import '../../../models/cart/cart_manager.dart';
 import '../../../models/user/user_manager.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 class CompanyListTile extends StatelessWidget {
   const CompanyListTile(this.company, {this.homeclic});
@@ -60,14 +61,8 @@ class CompanyListTile extends StatelessWidget {
             children: <Widget>[
               AspectRatio(
                 aspectRatio: 1,
-                child: Image.network(
-                  company.images!.first,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator.adaptive(),
-                    );
-                  },
+                child: AppNetworkImage(
+                  imageUrl: company.images!.first,
                 ),
               ),
               const SizedBox(

@@ -308,7 +308,7 @@ class CurrencyInputFormatter extends TextInputFormatter {
   TextEditingValue formatEditUpdate(
       TextEditingValue oldValue, TextEditingValue newValue) {
     if (newValue.selection.baseOffset == 0) {
-      print(true);
+      debugPrint('formatEditUpdate: baseOffset is 0');
       return newValue;
     }
 

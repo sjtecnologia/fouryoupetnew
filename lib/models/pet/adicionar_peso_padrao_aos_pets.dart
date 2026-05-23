@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 /// Função para atualizar todos os documentos da coleção 'pet'
 /// adicionando uma nova entrada na subcoleção 'pesos'.
@@ -7,14 +8,14 @@ Future<void> adicionarPesoPadraoAosPets() async {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   try {
-    print('Iniciando a atualização de pesos para os pets...');
+    debugPrint('Iniciando a atualização de pesos para os pets...');
 
     // 1. Acessa a coleção principal 'pet'
     QuerySnapshot petSnapshot = await _firestore.collection('pet').get();
 
     // Verifica se existem documentos na coleção 'pet'
     if (petSnapshot.docs.isEmpty) {
-      print(
+      debugPrint(
           'Nenhum registro encontrado na coleção "pet". Nenhuma atualização necessária.');
       return;
     }
@@ -45,11 +46,11 @@ Future<void> adicionarPesoPadraoAosPets() async {
     // 5. Confirma todas as operações do batch
     await batch.commit();
 
-    print('Atualização concluída com sucesso!');
-    print(
+    debugPrint('Atualização concluída com sucesso!');
+    debugPrint(
         '$petsAtualizados registros de pets receberam uma nova entrada de peso padrão.');
   } catch (e) {
-    print('Ocorreu um erro ao adicionar pesos aos pets: $e');
+    debugPrint('Ocorreu um erro ao adicionar pesos aos pets: $e');
   }
 }
 

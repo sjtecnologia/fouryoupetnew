@@ -14,6 +14,7 @@ import 'package:fouryoupet/services/cepaberto_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:stacked_firebase_auth/stacked_firebase_auth.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:fouryoupet/services/social_auth_service.dart';
 import 'package:fouryoupet/services/biometric_auth_service.dart';
 import 'package:fouryoupet/models/loyalty/loyalty_manager.dart';
@@ -156,8 +157,8 @@ class UserManager extends ChangeNotifier {
     } on FirebaseAuthException catch (e, s) {
       onFail!(_handleFirebaseLoginWithCredentialsException(e, s));
     } on Exception catch (e, s) {
-      print(e);
-      print(s);
+      debugPrint(e.toString());
+      debugPrint(s.toString());
       loading = false;
     }
     loading = false;
@@ -222,7 +223,7 @@ class UserManager extends ChangeNotifier {
       }
       return await _socialAuthService.authenticateWithBiometrics();
     } catch (e) {
-      print('Erro na autenticação biométrica: $e');
+      debugPrint('Erro na autenticação biométrica: $e');
       return false;
     }
   }
@@ -294,19 +295,22 @@ class UserManager extends ChangeNotifier {
   // Verificar se biometria está disponível E se há credenciais salvas
   Future<bool> isBiometricsAvailable() async {
     try {
-      final canCheck = await _socialAuthService.canCheckBiometrics();
-      if (!canCheck) return false;
+      // Usa getBestAvailableBiometric para garantir que há biometria real disponível
+      // (verifica hardware E matrícula, preferindo impressão digital)
+      final bestBiometric =
+          await _biometricAuthService.getBestAvailableBiometric();
+      if (bestBiometric == null) return false;
 
-      final availableBiometrics =
-          await _socialAuthService.getAvailableBiometrics();
-      if (availableBiometrics.isEmpty) return false;
-
-      // Também verifica se há credenciais salvas
       final hasCredentials = await _biometricAuthService.hasStoredCredentials();
       return hasCredentials;
     } catch (e) {
       return false;
     }
+  }
+
+  // Retorna o tipo de biometria disponível (para exibir ícone/texto correto na UI)
+  Future<BiometricType?> getAvailableBiometricType() async {
+    return await _biometricAuthService.getBestAvailableBiometric();
   }
 
   // Verificar se há credenciais salvas para login biométrico
@@ -335,7 +339,7 @@ class UserManager extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Erro ao carregar usuário por ID: $e');
+      debugPrint('Erro ao carregar usuário por ID: $e');
     }
   }
 
@@ -365,7 +369,7 @@ class UserManager extends ChangeNotifier {
         }
       }
     } catch (e) {
-      print('Erro ao criar/atualizar usuário social: $e');
+      debugPrint('Erro ao criar/atualizar usuário social: $e');
     }
   }
 
@@ -423,7 +427,7 @@ class UserManager extends ChangeNotifier {
 
   // Método para forçar recarregamento completo dos dados do usuário
   Future<void> reloadUserData() async {
-    print('DEBUG: Forcing user data reload');
+    debugPrint('DEBUG: Forcing user data reload');
     userapp = null;
     await _loadCurrentUser();
   }
@@ -503,9 +507,9 @@ class UserManager extends ChangeNotifier {
             await _loyaltyManager.validateReferralCode(referralCode);
         if (referrerId != null) {
           userapp.referredBy = referrerId;
-          print('✅ Usuário indicado por: $referrerId');
+          debugPrint('✅ Usuário indicado por: $referrerId');
         } else {
-          print('⚠️ Código de indicação inválido: $referralCode');
+          debugPrint('⚠️ Código de indicação inválido: $referralCode');
         }
       }
 
@@ -575,7 +579,7 @@ class UserManager extends ChangeNotifier {
             }
           }
         } else {
-          print(
+          debugPrint(
               'DEBUG: User document does not exist in Firestore - Creating new document');
           // Recriar documento do usuário no Firestore
           await _createUserDocument(currentUser);
@@ -583,13 +587,13 @@ class UserManager extends ChangeNotifier {
 
         notifyListeners();
       } else {
-        print('DEBUG: No current user found');
+        debugPrint('DEBUG: No current user found');
         userapp = null;
         notifyListeners();
       }
     } catch (e, stackTrace) {
-      print('DEBUG: Error loading current user: $e');
-      print('DEBUG: Stack trace: $stackTrace');
+      debugPrint('DEBUG: Error loading current user: $e');
+      debugPrint('DEBUG: Stack trace: $stackTrace');
       userapp = null;
       notifyListeners();
     }
@@ -598,7 +602,7 @@ class UserManager extends ChangeNotifier {
   // Método para recriar documento do usuário no Firestore
   Future<void> _createUserDocument(User firebaseUser) async {
     try {
-      print('DEBUG: Creating user document for ${firebaseUser.email}');
+      debugPrint('DEBUG: Creating user document for ${firebaseUser.email}');
 
       // Criar dados básicos do usuário
       final userData = {
@@ -619,7 +623,7 @@ class UserManager extends ChangeNotifier {
           await firestore.collection('users').doc(firebaseUser.uid).get();
       userapp = Userapp.fromDocument(docUser);
 
-      print(
+      debugPrint(
           'DEBUG: User document created successfully - Name: ${userapp?.name}');
 
       if (userapp != null) {
@@ -627,7 +631,7 @@ class UserManager extends ChangeNotifier {
         await getChats();
       }
     } catch (e) {
-      print('DEBUG: Error creating user document: $e');
+      debugPrint('DEBUG: Error creating user document: $e');
       userapp = null;
     }
   }

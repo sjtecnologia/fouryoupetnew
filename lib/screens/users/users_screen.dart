@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fouryoupet/common/custom_drawer/custom_drawer.dart';
-import 'package:fouryoupet/helpers/login_card.dart';
+import 'package:fouryoupet/common/login_card.dart';
 import 'package:fouryoupet/helpers/validators.dart';
 import 'package:fouryoupet/models/user/user_manager.dart';
 

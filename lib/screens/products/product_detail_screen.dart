@@ -9,6 +9,7 @@ import '../../models/review/review_manager.dart';
 import '../../models/recommendation/recommendation_manager.dart';
 import '../../models/loyalty/loyalty_manager.dart';
 import '../../screens/reviews/reviews_screen.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 /// Tela de detalhes do produto com avaliações e recomendações
 class ProductDetailScreen extends StatefulWidget {
@@ -87,19 +88,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       width: double.infinity,
       color: AppColors.surfaceVariant,
       child: widget.productImage != null
-          ? Image.network(
-              widget.productImage!,
+          ? AppNetworkImage(
+              imageUrl: widget.productImage!,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: AppColors.surfaceVariant,
-                  child: const Icon(
-                    Icons.image_not_supported,
-                    color: AppColors.onSurfaceVariant,
-                    size: 64,
-                  ),
-                );
-              },
+              height: 300,
+              width: double.infinity,
+              placeholderColor: AppColors.surfaceVariant,
             )
           : Container(
               color: AppColors.surfaceVariant,

@@ -418,28 +418,6 @@ class _ExpiryDateFormatter extends TextInputFormatter {
   }
 }
 
-// class _CpfFormatter extends TextInputFormatter {
-//   @override
-//   TextEditingValue formatEditUpdate(
-//     TextEditingValue oldValue,
-//     TextEditingValue newValue,
-//   ) {
-//     final text = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
-//     final buffer = StringBuffer();
-
-//     for (int i = 0; i < text.length && i < 11; i++) {
-//       if (i == 3 || i == 6) buffer.write('.');
-//       if (i == 9) buffer.write('-');
-//       buffer.write(text[i]);
-//     }
-
-//     return TextEditingValue(
-//       text: buffer.toString(),
-//       selection: TextSelection.collapsed(offset: buffer.length),
-//     );
-//   }
-// }
-
 class _PhoneFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(

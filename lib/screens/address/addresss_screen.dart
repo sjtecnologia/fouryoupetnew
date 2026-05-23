@@ -7,7 +7,7 @@ import 'package:fouryoupet/models/user/user_manager.dart';
 
 //import '../../common/custom_drawer/custom_drawer.dart';
 
-import '../../helpers/empty_card.dart';
+import '../../common/empty_card.dart';
 import '../../models/page_manager.dart';
 
 // ignore: must_be_immutable

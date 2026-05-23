@@ -81,22 +81,22 @@ class _EditCompanyScreenState extends State<EditCompanyScreen> {
     final userManager = context.read<UserManager>();
     final companyId = userManager.userapp?.companyID;
 
-    print('CompanyID do usuário: $companyId'); // Debug
+    debugPrint('CompanyID do usuário: $companyId'); // Debug
 
     // Se a empresa não foi passada como parâmetro, busca do Firestore
     if (_company.id == null && companyId != null && companyId.isNotEmpty) {
       try {
-        print('Buscando empresa com ID: $companyId'); // Debug
+        debugPrint('Buscando empresa com ID: $companyId'); // Debug
         final companyDoc = await FirebaseFirestore.instance
             .collection('companys')
             .doc(companyId)
             .get();
 
-        print('Documento encontrado: ${companyDoc.exists}'); // Debug
+        debugPrint('Documento encontrado: ${companyDoc.exists}'); // Debug
         if (companyDoc.exists) {
           final data = companyDoc.data();
           if (data != null) {
-            print('Dados da empresa: ${data['name']}'); // Debug
+            debugPrint('Dados da empresa: ${data['name']}'); // Debug
             setState(() {
               _company = Company.fromDocument(companyDoc);
               enabled = _company.active ?? false;
@@ -110,13 +110,13 @@ class _EditCompanyScreenState extends State<EditCompanyScreen> {
             });
           }
         } else {
-          print('Documento não existe no Firestore'); // Debug
+          debugPrint('Documento não existe no Firestore'); // Debug
           setState(() {
             _isLoading = false;
           });
         }
       } catch (e) {
-        print('Erro ao carregar dados da empresa: $e');
+        debugPrint('Erro ao carregar dados da empresa: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Erro ao carregar dados: $e')),
@@ -154,9 +154,9 @@ class _EditCompanyScreenState extends State<EditCompanyScreen> {
       // Lógica para forçar reaceite:
       // 1. Se o contrato nunca foi aceito
       // 2. Ou se a versão aceita pela empresa é diferente da versão atual
-      print('Status aceite_contrato: ${_company.aceite_contrato}'); // Debug
+      debugPrint('Status aceite_contrato: ${_company.aceite_contrato}'); // Debug
       final bool needsAcceptance = _company.aceite_contrato != true;
-      print('Precisa aceitar contrato? $needsAcceptance'); // Debug
+      debugPrint('Precisa aceitar contrato? $needsAcceptance'); // Debug
 
       if (mounted && needsAcceptance) {
         _openContractAndAcceptIfConfirmed();
@@ -1369,7 +1369,7 @@ class _EditCompanyScreenState extends State<EditCompanyScreen> {
           });
         }
       } catch (e) {
-        print('Erro ao atualizar dados da empresa: $e');
+        debugPrint('Erro ao atualizar dados da empresa: $e');
       }
     }
   }

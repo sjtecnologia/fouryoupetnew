@@ -1,5 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -78,7 +79,7 @@ class BiometricAuthService {
       final isDeviceSupported = await _localAuth.isDeviceSupported();
       return canCheck && isDeviceSupported;
     } catch (e) {
-      print('Erro ao verificar biometria: $e');
+      debugPrint('Erro ao verificar biometria: $e');
       return false;
     }
   }
@@ -88,8 +89,42 @@ class BiometricAuthService {
     try {
       return await _localAuth.getAvailableBiometrics();
     } catch (e) {
-      print('Erro ao obter biometrias disponíveis: $e');
+      debugPrint('Erro ao obter biometrias disponíveis: $e');
       return [];
+    }
+  }
+
+  /// Detecta o melhor tipo de biometria disponível no dispositivo.
+  /// Prioridade: impressão digital > rosto > íris > strong genérico.
+  /// Retorna null se nenhuma biometria estiver disponível ou configurada.
+  Future<BiometricType?> getBestAvailableBiometric() async {
+    try {
+      final canUse = await canUseBiometrics();
+      if (!canUse) return null;
+
+      final available = await getAvailableBiometrics();
+      if (available.isEmpty) return null;
+
+      // Prefere impressão digital no Android
+      if (available.contains(BiometricType.fingerprint)) {
+        return BiometricType.fingerprint;
+      }
+      // Aceita reconhecimento facial
+      if (available.contains(BiometricType.face)) {
+        return BiometricType.face;
+      }
+      // Aceita íris
+      if (available.contains(BiometricType.iris)) {
+        return BiometricType.iris;
+      }
+      // Biometria forte genérica (Android)
+      if (available.contains(BiometricType.strong)) {
+        return BiometricType.strong;
+      }
+      // Último recurso: qualquer tipo disponível
+      return available.first;
+    } catch (e) {
+      return null;
     }
   }
 
@@ -132,7 +167,7 @@ class BiometricAuthService {
         'userId': userId ?? '',
       };
     } on PlatformException catch (e) {
-      print('Erro na autenticação biométrica: $e');
+      debugPrint('Erro na autenticação biométrica: $e');
       return null;
     }
   }
@@ -164,7 +199,7 @@ class BiometricAuthService {
       // Retornamos null para indicar que o login social deve ser refeito
       return null;
     } catch (e) {
-      print('Erro ao fazer login com biometria: $e');
+      debugPrint('Erro ao fazer login com biometria: $e');
       return null;
     }
   }

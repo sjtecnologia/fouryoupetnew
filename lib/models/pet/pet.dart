@@ -228,7 +228,7 @@ class Pet extends ChangeNotifier {
     // --- NOVO CÓDIGO INSERIDO AQUI ---
     // Adiciona uma pesagem padrão se a lista de pesos estiver vazia ou nula
     if (pesos == null || pesos!.isEmpty) {
-      print(
+      debugPrint(
           'Verificando pesos: Lista de pesos vazia ou nula. Adicionando peso padrão.');
       pesos ??=
           []; // Garante que a lista de pesos esteja inicializada se for nula
@@ -236,9 +236,9 @@ class Pet extends ChangeNotifier {
         peso: "2.0", // Peso padrão como String, conforme a classe Pesos
         datapeso: DateTime.now(), // Data e hora atual
       ));
-      print('Peso padrão (2.0 kg) adicionado para ${name ?? 'este pet'}.');
+      debugPrint('Peso padrão (2.0 kg) adicionado para ${name ?? 'este pet'}.');
     } else {
-      print(
+      debugPrint(
           'Verificando pesos: Lista de pesos já contém ${pesos!.length} entradas. Nenhum peso padrão adicionado.');
     }
     // --- FIM DO NOVO CÓDIGO ---
@@ -586,7 +586,7 @@ class Pet extends ChangeNotifier {
             final String url = await snapshot.ref.getDownloadURL();
             updateImages.add(url);
           } catch (e) {
-            print(e);
+            debugPrint(e.toString());
           }
         }
       }

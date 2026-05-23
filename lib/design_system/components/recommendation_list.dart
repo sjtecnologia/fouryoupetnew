@@ -5,6 +5,7 @@ import '../app_typography.dart';
 import '../../models/recommendation/recommendation.dart';
 import '../../models/recommendation/recommendation_manager.dart';
 import 'product_card.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 /// Lista de recomendações personalizadas
 class RecommendationList extends StatelessWidget {
@@ -237,18 +238,10 @@ class RecommendationList extends StatelessWidget {
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(12),
                       ),
-                      child: Image.network(
-                        recommendation.productImage!,
+                      child: AppNetworkImage(
+                        imageUrl: recommendation.productImage!,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: AppColors.surfaceVariant,
-                            child: const Icon(
-                              Icons.image_not_supported,
-                              color: AppColors.onSurfaceVariant,
-                            ),
-                          );
-                        },
+                        placeholderColor: AppColors.surfaceVariant,
                       ),
                     )
                   : Container(

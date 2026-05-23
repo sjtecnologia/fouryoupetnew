@@ -15,6 +15,8 @@ import 'package:provider/provider.dart';
 
 import 'package:transparent_image/transparent_image.dart';
 
+import 'package:local_auth/local_auth.dart';
+
 import '../companys/companys_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -59,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadFeaturedProducts() async {
+    if (!mounted) return;
     setState(() => _loadingCache = true);
 
     try {
@@ -69,6 +72,8 @@ class _HomeScreenState extends State<HomeScreen> {
           .limit(20)
           .get();
 
+      if (!mounted) return;
+
       _cachedProducts = snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
@@ -78,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // Embaralhar para variedade
       _cachedProducts.shuffle();
     } catch (e) {
-      print('Erro ao carregar produtos: $e');
+      debugPrint('Erro ao carregar produtos: $e');
     } finally {
       if (mounted) {
         setState(() => _loadingCache = false);
@@ -193,20 +198,28 @@ class _HomeScreenState extends State<HomeScreen> {
                     final canUseBiometrics = snapshot.data ?? false;
 
                     if (canUseBiometrics) {
-                      // Mostra botão de login com biometria
-                      return FutureBuilder<String?>(
-                        future: userManager.getSavedEmail(),
-                        builder: (context, emailSnapshot) {
-                          final savedEmail = emailSnapshot.data;
+                      // Mostra botão de login com biometria (ícone/label dinâmico)
+                      return FutureBuilder<List<dynamic>>(
+                        future: Future.wait([
+                          userManager.getSavedEmail(),
+                          userManager.getAvailableBiometricType(),
+                        ]),
+                        builder: (context, snapshot) {
+                          final savedEmail = snapshot.data?[0] as String?;
+                          final biometricType =
+                              snapshot.data?[1] as BiometricType?;
+                          final isFace = biometricType == BiometricType.face;
                           return ElevatedButton.icon(
-                            icon: Icon(Icons.fingerprint,
+                            icon: Icon(isFace ? Icons.face : Icons.fingerprint,
                                 color: Colors.white, size: 24),
                             label: Column(
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Entrar com Biometria',
+                                  isFace
+                                      ? 'Entrar com Face ID'
+                                      : 'Entrar com Impressão Digital',
                                   style: TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold),
@@ -388,39 +401,43 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: () async {
                               // Navegar para detalhes do produto
                               final productId = productData['id'] as String?;
-                              print('🔍 Clicou no produto ID: $productId');
+                              debugPrint('🔍 Clicou no produto ID: $productId');
                               if (productId != null) {
                                 // Primeiro tenta buscar na lista carregada
                                 var product =
                                     productManager.findProductByID(productId);
-                                
+
                                 // Se não encontrou, busca diretamente do Firestore
                                 if (product == null) {
-                                  print('🔄 Produto não está na lista, buscando do Firestore...');
+                                  debugPrint(
+                                      '🔄 Produto não está na lista, buscando do Firestore...');
                                   try {
                                     final doc = await FirebaseFirestore.instance
                                         .collection('products')
                                         .doc(productId)
                                         .get();
-                                    
+
                                     if (doc.exists) {
                                       product = Product.fromDocument(doc);
-                                      print('✅ Produto carregado do Firestore: ${product.name}');
+                                      debugPrint(
+                                          '✅ Produto carregado do Firestore: ${product.name}');
                                     }
                                   } catch (e) {
-                                    print('❌ Erro ao buscar produto: $e');
+                                    debugPrint('❌ Erro ao buscar produto: $e');
                                   }
                                 }
-                                
+
                                 if (product != null) {
-                                  print('✅ Navegando para produto: ${product.name}');
+                                  debugPrint(
+                                      '✅ Navegando para produto: ${product.name}');
                                   Navigator.of(context).pushNamed('/productcp',
                                       arguments: product);
                                 } else {
-                                  print('❌ Produto não encontrado');
+                                  debugPrint('❌ Produto não encontrado');
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Produto não disponível no momento'),
+                                      content: Text(
+                                          'Produto não disponível no momento'),
                                       duration: Duration(seconds: 2),
                                     ),
                                   );

@@ -119,13 +119,13 @@ class ServiceManager extends ChangeNotifier {
         // Atualiza o documento com as keywords
         await doc.reference.update({'keywords': keywords});
 
-        print('Documento ${doc.id} atualizado com sucesso!');
+        debugPrint('Documento ${doc.id} atualizado com sucesso!');
       } else {
-        print('Nome do serviço não encontrado no documento ${doc.id}');
+        debugPrint('Nome do serviço não encontrado no documento ${doc.id}');
       }
     }
 
-    print('Atualização concluída!');
+    debugPrint('Atualização concluída!');
   }
 
   List<Service> get filteredServices {

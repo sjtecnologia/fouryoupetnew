@@ -4,7 +4,8 @@ import 'package:provider/provider.dart';
 
 import 'package:fouryoupet/models/cart/cart_product.dart';
 
-import '../../../helpers/custom_icon_button.dart';
+import '../../../common/custom_icon_button.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 class CartTile extends StatelessWidget {
   const CartTile(this.cartProduct);
@@ -33,7 +34,7 @@ class CartTile extends StatelessWidget {
                     height: 80,
                     width: 80,
                     child:
-                        Image.network(cartProduct.product?.images?.first ?? ''),
+                        AppNetworkImage(imageUrl: cartProduct.product?.images?.first ?? ''),
                   ),
                 
                 Expanded(

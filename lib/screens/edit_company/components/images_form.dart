@@ -9,6 +9,7 @@ import 'package:fouryoupet/helpers/styles/text_styles.dart';
 import 'package:fouryoupet/models/company/company.dart';
 
 import 'image_source_sheet.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 class ImagesForm extends StatelessWidget {
   const ImagesForm(this.company);
@@ -47,69 +48,9 @@ class ImagesForm extends StatelessWidget {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: image is String
-                            ? Image.network(
-                                image,
+                            ? AppNetworkImage(
+                                imageUrl: image,
                                 fit: BoxFit.contain,
-                                loadingBuilder:
-                                    (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return Center(
-                                    child: CircularProgressIndicator(
-                                      value:
-                                          loadingProgress.expectedTotalBytes !=
-                                                  null
-                                              ? loadingProgress
-                                                      .cumulativeBytesLoaded /
-                                                  loadingProgress
-                                                      .expectedTotalBytes!
-                                              : null,
-                                    ),
-                                  );
-                                },
-                                errorBuilder: (context, error, stackTrace) {
-                                  print('❌ Erro ao carregar imagem: $error');
-                                  return Container(
-                                    color: Colors.grey[200],
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.broken_image,
-                                          size: 80,
-                                          color: Colors.grey[400],
-                                        ),
-                                        const SizedBox(height: 16),
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 16),
-                                          child: Text(
-                                            'Imagem não encontrada',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.grey[600],
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 16),
-                                          child: Text(
-                                            'Remova esta imagem e adicione uma nova',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey[500],
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
                               )
                             : Image.file(
                                 image as File,
