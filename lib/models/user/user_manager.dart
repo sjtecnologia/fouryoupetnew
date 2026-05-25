@@ -142,13 +142,14 @@ class UserManager extends ChangeNotifier {
 
         await _loadCurrentUser(firebaseUser: result.user);
 
-        // Salvar credenciais para login biométrico
+        // Salvar dados de identificação para login biométrico (sem senha)
         await _biometricAuthService.saveCredentials(
           email: userapp.email!,
-          password: userapp.password!,
           authProvider: 'email',
           userId: result.user!.uid,
         );
+        // Limpar senha da memória imediatamente — modelo Zero Knowledge
+        userapp.password = null;
 
         userapp.saveToken();
 
@@ -252,39 +253,15 @@ class UserManager extends ChangeNotifier {
         return;
       }
 
-      final authProvider = credentials['authProvider'];
-      final email = credentials['email']!;
-      final password = credentials['password']!;
-      final userId = credentials['userId']!;
-
-      // Faz login normalmente com email/senha
-      if (authProvider == 'email' && password.isNotEmpty) {
-        final result = await auth.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-        await _loadCurrentUser(firebaseUser: result.user);
+      // Usa a sessão Firebase persistida pelo SDK no Keychain/KeyStore.
+      // A biometria é a barreira de acesso; não há senha armazenada localmente.
+      final firebaseUser = auth.currentUser;
+      if (firebaseUser != null) {
+        await _loadCurrentUser(firebaseUser: firebaseUser);
         onSuccess();
-      } else if (authProvider == 'google') {
-        // Re-autentica com Google
-        await signInWithGoogle(
-          onSuccess: onSuccess,
-          onFail: onFail,
-        );
-      } else if (authProvider == 'apple') {
-        // Re-autentica com Apple
-        await signInWithApple(
-          onSuccess: onSuccess,
-          onFail: onFail,
-        );
       } else {
-        // Fallback: tenta carregar pelo ID (não recomendado)
-        await _loadCurrentUserById(userId);
-        if (userapp != null) {
-          onSuccess();
-        } else {
-          onFail?.call('Usuário não encontrado. Faça login novamente.');
-        }
+        // Sessão expirada ou revogada — força re-login completo
+        onFail?.call('Sessão expirada. Por favor, faça login novamente.');
       }
     } catch (e) {
       onFail?.call('Erro ao fazer login com biometria: $e');
@@ -329,20 +306,6 @@ class UserManager extends ChangeNotifier {
   }
 
   // Carregar usuário pelo ID (para login biométrico com providers sociais)
-  Future<void> _loadCurrentUserById(String? userId) async {
-    if (userId == null || userId.isEmpty) return;
-    try {
-      final docUser = await firestore.collection('users').doc(userId).get();
-      if (docUser.exists) {
-        userapp = Userapp.fromDocument(docUser);
-        userapp?.saveToken();
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Erro ao carregar usuário por ID: $e');
-    }
-  }
-
   // Criar ou atualizar usuário de login social no Firestore
   Future<void> _createOrUpdateSocialUser(User firebaseUser) async {
     try {
@@ -496,6 +459,10 @@ class UserManager extends ChangeNotifier {
       final UserCredential result = await auth.createUserWithEmailAndPassword(
           email: userapp.email!, password: userapp.password!);
 
+      // Limpar senhas da memória imediatamente após autenticação
+      userapp.password = null;
+      userapp.confirmPassword = null;
+
       userapp.id = result.user!.uid;
 
       // Gerar código de indicação único para o novo usuário
@@ -542,9 +509,10 @@ class UserManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Fazer logout apenas do Firebase (para quando o app é fechado)
+  /// Suspende a sessão na UI sem invalidar o Firebase Auth.
+  /// A sessão Firebase (refresh token) é mantida pelo SDK para permitir
+  /// o login biométrico na próxima abertura sem armazenar senha.
   Future<void> signOutFirebaseOnly() async {
-    await _biometricAuthService.signOutFirebase();
     userapp = null;
     notifyListeners();
   }

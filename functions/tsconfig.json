@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "module": "CommonJS",
-    "moduleResolution": "node",
+    "module": "Node16",
+    "moduleResolution": "node16",
     "esModuleInterop": true,
     "target": "ES2022",
     "sourceMap": true,
@@ -9,16 +9,10 @@
     "rootDir": "./src",
     "strict": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
     "skipLibCheck": true,
     "typeRoots": [
       "node_modules/@types"
     ],
-    "paths": {
-      "*": [
-        "node_modules/*"
-      ]
-    },
     "lib": [
       "ES2022",
       "dom"

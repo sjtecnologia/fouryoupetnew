@@ -4,13 +4,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-/// Serviço para gerenciar autenticação biométrica
+/// Serviço para gerenciar autenticação biométrica.
+///
+/// Modelo Zero Knowledge: a senha NUNCA é armazenada localmente.
 ///
 /// Fluxo:
 /// 1. Usuário faz login (email/senha ou rede social)
-/// 2. Credenciais são salvas de forma segura
-/// 3. Quando o app é fechado, faz logout do Firebase
-/// 4. Na próxima abertura, se tiver credenciais salvas, permite login com biometria
+/// 2. Apenas e-mail, provider e userId são salvos para identificação
+/// 3. A sessão do Firebase (refresh token) é mantida pelo SDK no Keychain/KeyStore
+/// 4. Na próxima abertura, a biometria é a barreira de acesso ao app;
+///    após verificação biométrica, usa-se a sessão Firebase já persistida.
 class BiometricAuthService {
   static final BiometricAuthService _instance =
       BiometricAuthService._internal();
@@ -29,25 +32,20 @@ class BiometricAuthService {
   final LocalAuthentication _localAuth = LocalAuthentication();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Chaves para armazenamento seguro
+  // Chaves para armazenamento seguro (sem senha — modelo Zero Knowledge)
   static const String _keyEmail = 'saved_email';
-  static const String _keyPassword = 'saved_password';
   static const String _keyAuthProvider = 'saved_auth_provider';
   static const String _keyBiometricEnabled = 'biometric_enabled';
   static const String _keyUserId = 'saved_user_id';
 
-  /// Salva as credenciais após login bem-sucedido
+  /// Salva as credenciais de identificação após login bem-sucedido.
+  /// A senha NUNCA é armazenada — apenas dados não-secretos de identificação.
   Future<void> saveCredentials({
     required String email,
-    String? password,
-    required String
-        authProvider, // 'email', 'google', 'apple', 'facebook', 'twitter'
+    required String authProvider, // 'email', 'google', 'apple', 'facebook'
     required String userId,
   }) async {
     await _secureStorage.write(key: _keyEmail, value: email);
-    if (password != null) {
-      await _secureStorage.write(key: _keyPassword, value: password);
-    }
     await _secureStorage.write(key: _keyAuthProvider, value: authProvider);
     await _secureStorage.write(key: _keyUserId, value: userId);
     await _secureStorage.write(key: _keyBiometricEnabled, value: 'true');
@@ -150,9 +148,8 @@ class BiometricAuthService {
         return null;
       }
 
-      // Retorna as credenciais salvas
+      // Retorna apenas os dados de identificação (sem senha)
       final email = await _secureStorage.read(key: _keyEmail);
-      final password = await _secureStorage.read(key: _keyPassword);
       final authProvider = await _secureStorage.read(key: _keyAuthProvider);
       final userId = await _secureStorage.read(key: _keyUserId);
 
@@ -162,7 +159,6 @@ class BiometricAuthService {
 
       return {
         'email': email,
-        'password': password ?? '',
         'authProvider': authProvider,
         'userId': userId ?? '',
       };
@@ -172,7 +168,12 @@ class BiometricAuthService {
     }
   }
 
-  /// Faz login com as credenciais salvas após autenticação biométrica
+  /// Verifica a biometria e retorna o usuário Firebase da sessão persistida.
+  ///
+  /// Modelo Zero Knowledge: após a verificação biométrica bem-sucedida,
+  /// usa-se a sessão Firebase já mantida pelo SDK (sem reutilizar senha).
+  /// Se a sessão expirou ou foi revogada, retorna null e o app deve solicitar
+  /// login completo.
   Future<User?> signInWithBiometrics() async {
     try {
       final credentials = await authenticateAndGetCredentials();
@@ -180,23 +181,16 @@ class BiometricAuthService {
         return null;
       }
 
-      final authProvider = credentials['authProvider'];
-      final email = credentials['email']!;
-      final password = credentials['password']!;
-
-      // Se for login por email/senha
-      if (authProvider == 'email' && password.isNotEmpty) {
-        final userCredential = await _auth.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-        return userCredential.user;
+      // Usa a sessão Firebase persistida pelo SDK no Keychain/KeyStore.
+      // Não há senha armazenada — a biometria é a única barreira de acesso.
+      final currentUser = _auth.currentUser;
+      if (currentUser != null) {
+        // Força refresh do token para garantir que a sessão ainda é válida.
+        await currentUser.getIdToken(true);
+        return currentUser;
       }
 
-      // Para provedores sociais (Google, Apple, Facebook, Twitter)
-      // O usuário precisa fazer login novamente pela rede social
-      // pois não podemos armazenar tokens de acesso de forma segura
-      // Retornamos null para indicar que o login social deve ser refeito
+      // Sessão expirada ou revogada — exige re-login completo.
       return null;
     } catch (e) {
       debugPrint('Erro ao fazer login com biometria: $e');
@@ -204,10 +198,9 @@ class BiometricAuthService {
     }
   }
 
-  /// Limpa as credenciais salvas (chamado no logout completo)
+  /// Limpa os dados de identificação salvos (chamado no logout completo)
   Future<void> clearCredentials() async {
     await _secureStorage.delete(key: _keyEmail);
-    await _secureStorage.delete(key: _keyPassword);
     await _secureStorage.delete(key: _keyAuthProvider);
     await _secureStorage.delete(key: _keyUserId);
     await _secureStorage.delete(key: _keyBiometricEnabled);

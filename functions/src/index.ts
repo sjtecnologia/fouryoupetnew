@@ -11,8 +11,11 @@ import { defineSecret } from "firebase-functions/params";
 
 
 
-import { logger } from "firebase-functions/v2";
 import axios from "axios";
+import { appLogger, generateRequestId, sanitize } from "./logger";
+
+// Logger raiz — cada função cria um child com requestId e action para rastreamento
+const logger = appLogger;
 
 
 
@@ -66,31 +69,34 @@ export const getUserData = onCall({
   memory: '128MiB',
 }, async (request) => {
   const { data, auth } = request;
+  const reqLogger = logger.child({ action: 'getUserData', requestId: generateRequestId() });
 
   if (!auth) {
-    logger.warn('Usuário não autenticado tentando acessar getUserData.');
+    reqLogger.warn('Tentativa de acesso sem autenticação');
     return {
       "data": "Nenhum usuário logado",
     };
   }
 
   const uid = auth.uid;
+  const uidLogger = reqLogger.child({ uid });
 
   try {
     const snapshot = await db.collection("users").doc(uid).get();
 
     if (!snapshot.exists) {
-      logger.warn(`Usuário com UID ${uid} não encontrado.`);
+      uidLogger.warn('Usuário não encontrado no Firestore');
       return { "data": null };
     }
 
-    logger.log(`Dados do usuário ${uid}:`, snapshot.data());
+    // Não logar snapshot.data() — contém dados pessoais (PII)
+    uidLogger.info('Dados do usuário recuperados com sucesso');
 
     return {
       "data": snapshot.data(),
     };
   } catch (error: any) {
-    logger.error(`Erro ao buscar dados do usuário ${uid}:`, error);
+    uidLogger.error('Erro ao buscar dados do usuário', { error });
     throw new Error('Falha ao buscar dados do usuário.');
   }
 });
@@ -354,7 +360,12 @@ export const createPagBankSubscription = onCall(
     secrets: [PAGBANK_TOKEN_SECRET],
   },
   async (request) => {
-    logger.info('Iniciando createPagBankSubscription');
+    const reqLogger = logger.child({
+      action: 'createPagBankSubscription',
+      requestId: generateRequestId(),
+      uid: request.auth?.uid,
+    });
+    reqLogger.info('Iniciando createPagBankSubscription');
     
     try {
       const { 
@@ -369,7 +380,15 @@ export const createPagBankSubscription = onCall(
 
       // Validar dados obrigatórios
       if (!companyId || !encryptedCard || !cardHolder || !cpf || !phone || !address || !security_code) {
-        logger.error('Dados incompletos recebidos em createPagBankSubscription');
+        reqLogger.error('Dados obrigatórios ausentes em createPagBankSubscription', {
+          hasCompanyId: !!companyId,
+          hasEncryptedCard: !!encryptedCard,
+          hasCardHolder: !!cardHolder,
+          hasCpf: !!cpf,
+          hasPhone: !!phone,
+          hasAddress: !!address,
+          hasSecurityCode: !!security_code,
+        });
         throw new HttpsError('invalid-argument', 'Dados incompletos para criar assinatura');
       }
 
@@ -396,12 +415,10 @@ export const createPagBankSubscription = onCall(
 
       try {
         // Criar a assinatura com o cartão já criptografado
-        logger.info('========== PREPARANDO REQUISIÇÃO DE ASSINATURA ==========');
-        
         let subscriptionData: any;
         
         if (companyData.customer_id === null || companyData.customer_id === undefined || companyData.customer_id === '') {
-          logger.info('customer_id não encontrado nos dados da empresa. Criando novo cliente PagBank.');
+          reqLogger.info('customer_id não encontrado — criando novo cliente PagBank', { companyId });
           subscriptionData = {
             plan: {
               id: 'PLAN_633F2BAF-4FE1-4EE7-A1EE-C317E782F086'
@@ -435,7 +452,10 @@ export const createPagBankSubscription = onCall(
             reference_id: `SUB_${companyId}_${Date.now()}`,
           };
         } else {
-          logger.info('customer_id encontrado nos dados da empresa. Usando cliente PagBank existente.');
+          reqLogger.info('customer_id existente — usando cliente PagBank já cadastrado', {
+            companyId,
+            customerId: companyData.customer_id,
+          });
           subscriptionData = {
             plan: {
               id: 'PLAN_633F2BAF-4FE1-4EE7-A1EE-C317E782F086'
@@ -465,29 +485,17 @@ export const createPagBankSubscription = onCall(
 
         const requestUrl = `${baseUrl}/subscriptions`;
 
-        // === GERAÇÃO DO LOG PARA HOMOLOGAÇÃO COM DADOS COMPLETOS ===
         const requestHeaders = {
           'accept': 'application/json',
           'Authorization': getPagBankAuthorizationHeader(pagBankToken),
           'content-type': 'application/json'
         };
 
-        logger.info('Preparando requisição de assinatura PagBank', {
-          timestamp: new Date().toISOString(),
-          environment: 'PRODUCTION',
-          endpoint: {
-            url: requestUrl,
-            method: 'POST'
-          },
-          metadata: {
-            company_id: companyId,
-            plan_id: 'PLAN_633F2BAF-4FE1-4EE7-A1EE-C317E782F086',
-            has_existing_customer: !!(companyData.customer_id),
-            reference_id: subscriptionData.reference_id
-          }
+        reqLogger.info('Enviando requisição de assinatura ao PagBank', {
+          endpoint: requestUrl,
+          hasExistingCustomer: !!(companyData.customer_id),
+          referenceId: subscriptionData.reference_id,
         });
-
-        logger.info('Enviando requisição para PagBank...');
 
         const subscriptionResponse = await axios.post(
           requestUrl,
@@ -497,9 +505,7 @@ export const createPagBankSubscription = onCall(
           }
         );
 
-        logger.info('========== RESPOSTA DA ASSINATURA ==========');
-        logger.info('Status:', subscriptionResponse.status);
-        logger.info('Assinatura criada no PagBank', {
+        reqLogger.info('Assinatura PagBank criada com sucesso', {
           subscriptionId: subscriptionResponse.data?.id,
           status: subscriptionResponse.data?.status,
           customerId: subscriptionResponse.data?.customer?.id,
@@ -512,8 +518,12 @@ export const createPagBankSubscription = onCall(
           subscriptionPlan: 'PLAN_633F2BAF-4FE1-4EE7-A1EE-C317E782F086',
           customer_id: subscriptionResponse.data.customer.id,
         });
+        reqLogger.info('Empresa atualizada com dados da assinatura', { companyId });
 
-        logger.info('========== ASSINATURA CRIADA COM SUCESSO ==========');
+        reqLogger.info('createPagBankSubscription concluído com sucesso', {
+          companyId,
+          subscriptionId: subscriptionResponse.data.id,
+        });
 
         return { 
           success: true, 
@@ -522,19 +532,14 @@ export const createPagBankSubscription = onCall(
         };
 
       } catch (axiosError: any) {
-        logger.error('========== ERRO NA REQUISIÇÃO AXIOS ==========');
-        logger.error('Mensagem:', axiosError.message);
-        
+        // Log estruturado único com todo o contexto do erro Axios
         if (axiosError.response) {
-          logger.error('Status:', axiosError.response.status);
-          logger.error('Status Text:', axiosError.response.statusText);
-          logger.error('Erro retornado pelo PagBank', {
-            status: axiosError.response.status,
-            statusText: axiosError.response.statusText,
-            data: sanitizePagBankErrorData(axiosError.response.data),
+          reqLogger.error('Erro na requisição ao PagBank', {
+            httpStatus: axiosError.response.status,
+            httpStatusText: axiosError.response.statusText,
+            pagbankError: sanitizePagBankErrorData(axiosError.response.data),
           });
           
-          // Tratamento específico de erros do PagBank
           const errorData = axiosError.response.data;
           let errorMessage = 'Erro ao processar pagamento';
           
@@ -550,25 +555,24 @@ export const createPagBankSubscription = onCall(
           
           throw new HttpsError('invalid-argument', errorMessage);
         } else if (axiosError.request) {
-          logger.error('Nenhuma resposta recebida');
+          reqLogger.error('PagBank não respondeu à requisição', { errorMessage: axiosError.message });
           throw new HttpsError('internal', 'Sem resposta do servidor PagBank');
         } else {
-          logger.error('Erro ao configurar requisição:', axiosError.message);
+          reqLogger.error('Falha ao montar requisição ao PagBank', { errorMessage: axiosError.message });
           throw new HttpsError('internal', 'Erro ao configurar requisição');
         }
       }
 
     } catch (error: any) {
       if (error instanceof HttpsError) {
-        logger.error('HttpsError:', error.message);
+        // Já foi logado no catch interno; apenas repropaga
         throw error;
       }
       
-      logger.error('========== ERRO GERAL ==========');
-      logger.error('Tipo:', typeof error);
-      logger.error('Nome:', error.name);
-      logger.error('Mensagem:', error.message);
-      logger.error('Stack:', error.stack);
+      reqLogger.error('Erro inesperado em createPagBankSubscription', {
+        errorName: (error as Error).name,
+        errorMessage: (error as Error).message,
+      });
       throw new HttpsError('internal', error.message || 'Erro ao criar assinatura');
     }
   }
@@ -584,7 +588,12 @@ export const getPagBankPublicKey = onCall(
     secrets: [PAGBANK_TOKEN_SECRET],
   },
   async (request) => {
-    logger.info('Obtendo chave pública do PagBank');
+    const pkLogger = logger.child({
+      action: 'getPagBankPublicKey',
+      requestId: generateRequestId(),
+      uid: request.auth?.uid,
+    });
+    pkLogger.info('Obtendo chave pública do PagBank');
     
     try {
       const pagBankToken = PAGBANK_TOKEN_SECRET.value();
@@ -605,7 +614,7 @@ export const getPagBankPublicKey = onCall(
         }
       );
 
-      logger.info('Chave pública obtida com sucesso');
+      pkLogger.info('Chave pública obtida com sucesso');
       
       return {
         success: true,
@@ -614,9 +623,12 @@ export const getPagBankPublicKey = onCall(
       };
 
     } catch (error: any) {
-      logger.error('Erro ao obter chave pública:', error);
+      pkLogger.error('Erro ao obter chave pública do PagBank', {
+        hasResponse: !!(error as any).response,
+        errorMessage: (error as Error).message,
+      });
       
-      if (error.response) {
+      if ((error as any).response) {
         throw new HttpsError('internal', 'Erro ao obter chave pública do PagBank');
       }
       
@@ -637,10 +649,11 @@ async function getDeviceTokens(uid: string) {
     const querySnapshot = await db
       .collection("users").doc(uid).collection("tokens").get();
     const tokens = querySnapshot.docs.map((doc) => doc.id);
-    logger.log(`Tokens do usuário ${uid}:`, tokens);
+    // Não logar os tokens em si — são identificadores de dispositivo (PII)
+    logger.info('Tokens de dispositivo recuperados', { uid, count: tokens.length });
     return tokens;
   } catch (error: any) {
-    logger.error(`Erro ao obter tokens do usuário ${uid}:`, error);
+    logger.error('Erro ao obter tokens do usuário', { uid, error });
     return [];
   }
 }
@@ -672,11 +685,16 @@ async function sendPushFCM(tokens: string[], title: string, message: string, ima
     }
     try {
       const response = await messaging.sendEachForMulticast(messagem);
-      logger.log('Notificações enviadas com sucesso:', response);
+      // Não logar a resposta completa — contém dados de tokens de dispositivo
+      logger.info('Notificações FCM enviadas', {
+        successCount: response.successCount,
+        failureCount: response.failureCount,
+        total: tokens.length,
+      });
       return response;
     } catch (error: any) {
-      logger.error('Erro ao enviar notificações:', error);
-      return error;
+      logger.error('Erro ao enviar notificações FCM', { error });
+      throw error; // propaga para o chamador detectar a falha
     }
   } else {
     logger.warn('Nenhum token de dispositivo encontrado para enviar a notificação.');
@@ -706,7 +724,6 @@ async function sendPushFCM(tokens: string[], title: string, message: string, ima
  * @returns {Promise<any>} A resposta do serviço FCM.
  */
 async function sendPushFCMIMG(userstokens: string[], title: string, body: string, image: string, type: string) {
-  logger.log(userstokens);
   if (userstokens.length > 0) {
     const androidConfig: AndroidConfig = {
       priority: 'high',
@@ -745,14 +762,19 @@ async function sendPushFCMIMG(userstokens: string[], title: string, body: string
 
     };
 
-    logger.log(message);
+    // Não logar o payload completo — contém lista de tokens de dispositivo (PII)
+    logger.info('Enviando FCM com imagem', { count: userstokens.length });
     try {
       const response = await messaging.sendEachForMulticast(message);
-      logger.log('Notificações com imagem enviadas com sucesso:', response);
+      logger.info('Notificações FCM com imagem enviadas', {
+        successCount: response.successCount,
+        failureCount: response.failureCount,
+        total: userstokens.length,
+      });
       return response;
     } catch (error: any) {
-      logger.error('Erro ao enviar notificações com imagem:', error);
-      return error;
+      logger.error('Erro ao enviar notificações FCM com imagem', { error });
+      throw error; // propaga para o chamador detectar a falha
     }
   } else {
     logger.warn('Nenhum token de dispositivo encontrado para enviar a notificação com imagem.');
@@ -771,26 +793,30 @@ export const pagBankWebhook = onRequest(
     secrets: [PAGBANK_WEBHOOK_TOKEN_SECRET],
   },
   async (request, response) => {
-    logger.info('=== WEBHOOK PAGBANK RECEBIDO ===');
-    logger.info('Method:', request.method);
+    const webhookLogger = logger.child({
+      action: 'pagBankWebhook',
+      requestId: generateRequestId(),
+      remoteIp: request.ip,
+    });
+    webhookLogger.info('Webhook PagBank recebido', { method: request.method });
 
     try {
-      // Verificar se é POST
       if (request.method !== 'POST') {
         response.status(405).send('Method Not Allowed');
         return;
       }
 
-      // Validar a origem (opcional mas recomendado)
+      // Valida token do webhook — não logar o token em si
       const token = request.headers['x-webhook-token'];
       const webhookToken = PAGBANK_WEBHOOK_TOKEN_SECRET.value();
       if (!webhookToken) {
-        logger.error('Token de webhook do PagBank não configurado');
+        webhookLogger.error('Token de webhook do PagBank não configurado');
         response.status(500).send('Webhook token not configured');
         return;
       }
 
       if (token !== webhookToken) {
+        webhookLogger.warn('Token de webhook inválido na requisição');
         response.status(401).send('Unauthorized');
         return;
       }
@@ -798,7 +824,7 @@ export const pagBankWebhook = onRequest(
       const { id, reference_id, status, charges } = request.body;
 
       if (!id || !status) {
-        logger.error('Webhook sem ID ou status');
+        webhookLogger.error('Webhook recebido sem ID ou status obrigatórios');
         response.status(400).send('Bad Request');
         return;
       }
@@ -838,7 +864,7 @@ export const pagBankWebhook = onRequest(
         .get();
 
       if (companiesQuery.empty) {
-        logger.error('Empresa não encontrada para subscription:', id);
+        webhookLogger.error('Empresa não encontrada para subscription', { subscriptionId: id });
         response.status(404).send('Company not found');
         return;
       }
@@ -846,8 +872,7 @@ export const pagBankWebhook = onRequest(
       const companyDoc = companiesQuery.docs[0];
       const companyId = companyDoc.id;
 
-      logger.info('Empresa encontrada:', companyId);
-      logger.info('Atualizando status para:', appStatus);
+      webhookLogger.info('Processando webhook para empresa', { companyId, newStatus: appStatus });
 
       // Atualizar status da empresa
       await db.collection('companys').doc(companyId).update({
@@ -880,11 +905,14 @@ export const pagBankWebhook = onRequest(
         );
       }
 
-      logger.info('Webhook processado com sucesso');
+      webhookLogger.info('Webhook processado com sucesso', { companyId, appStatus });
       response.status(200).send('OK');
 
     } catch (error: any) {
-      logger.error('Erro ao processar webhook:', error);
+      webhookLogger.error('Erro ao processar webhook PagBank', {
+        errorName: (error as Error).name,
+        errorMessage: (error as Error).message,
+      });
       response.status(500).send('Internal Server Error');
     }
   }
@@ -900,7 +928,12 @@ export const checkSubscriptionStatus = onCall(
     secrets: [PAGBANK_TOKEN_SECRET],
   },
   async (request) => {
-    logger.info('=== VERIFICANDO STATUS DA ASSINATURA ===');
+    const subLogger = logger.child({
+      action: 'checkSubscriptionStatus',
+      requestId: generateRequestId(),
+      uid: request.auth?.uid,
+    });
+    subLogger.info('Verificando status da assinatura');
     
     try {
       const { companyId } = request.data;
@@ -927,27 +960,22 @@ export const checkSubscriptionStatus = onCall(
         throw new HttpsError('internal', 'Token PagBank não configurado');
       }
       
-      // URL da API
       const url = `https://api.assinaturas.pagseguro.com/subscriptions/${subscriptionId}`;
 
-      logger.info('Consultando assinatura:', subscriptionId);
+      subLogger.info('Consultando assinatura no PagBank', { subscriptionId });
 
-      
-      // Fazer a requisição
       const response = await axios.get(url, {
         headers: {
           'accept': 'application/json',
           'Authorization': getPagBankAuthorizationHeader(token)
         }
       });
-      
 
-      logger.info('Resposta de status da assinatura recebida', {
+      subLogger.info('Status da assinatura recebido', {
         subscriptionId,
         status: response.data?.status,
       });
 
-      // Mapear status
       let appStatus = 'INACTIVE';
       let companyActive = false;
 
@@ -972,7 +1000,6 @@ export const checkSubscriptionStatus = onCall(
           break;
       }
 
-      // Atualizar no Firestore
       await db.collection('companys').doc(companyId).update({
         active: companyActive,
         subscriptionStatus: appStatus,
@@ -981,23 +1008,32 @@ export const checkSubscriptionStatus = onCall(
         'subscription.nextBillingDate': response.data.next_billing_date || null
       });
 
+      // Não retornar response.data bruto — pode conter dados sensíveis do PagBank
       return {
         success: true,
         status: appStatus,
         active: companyActive,
-        details: response.data
+        nextBillingDate: response.data.next_billing_date || null,
       };
 
     } catch (error: any) {
-      logger.error('Erro ao verificar status:', error);
-      
+      if (error instanceof HttpsError) throw error;
+
       if (axios.isAxiosError(error)) {
+        subLogger.error('Erro Axios ao verificar status da assinatura', {
+          httpStatus: error.response?.status,
+          errorMessage: error.message,
+        });
         if (error.response?.status === 404) {
           throw new HttpsError('not-found', 'Assinatura não encontrada');
         }
         throw new HttpsError('internal', error.response?.data?.message || 'Erro ao verificar status');
       }
       
+      subLogger.error('Erro inesperado ao verificar status da assinatura', {
+        errorName: (error as Error).name,
+        errorMessage: (error as Error).message,
+      });
       throw new HttpsError('internal', 'Erro ao verificar status da assinatura');
     }
   }
@@ -1011,7 +1047,12 @@ export const createPagBankPlan = onCall(
     secrets: [PAGBANK_TOKEN_SECRET],
   },
   async (request) => {
-    logger.info('Iniciando createPagBankPlan');
+    const planLogger = logger.child({
+      action: 'createPagBankPlan',
+      requestId: generateRequestId(),
+      uid: request.auth?.uid,
+    });
+    planLogger.info('Iniciando createPagBankPlan');
     
     try {
       // Verificação de autenticação (opcional - remova se não precisar)
@@ -1095,22 +1136,12 @@ export const createPagBankPlan = onCall(
         'content-type': 'application/json'
       };
 
-      logger.info('Preparando criação de plano PagBank', {
-        timestamp: new Date().toISOString(),
-        environment: 'PRODUCTION',
-        endpoint: {
-          url: requestUrl,
-          method: 'POST'
-        },
-        metadata: {
-          reference_id: planData.reference_id,
-          interval_unit: planData.interval.unit,
-          interval_length: planData.interval.length,
-          payment_methods: planData.payment_method,
-        }
+      planLogger.info('Enviando requisição para criar plano no PagBank', {
+        endpoint: requestUrl,
+        referenceId: planData.reference_id,
+        intervalUnit: planData.interval.unit,
+        intervalLength: planData.interval.length,
       });
-
-      logger.info('Enviando requisição para criar plano no PagBank...');
 
       try {
         const response = await axios.post(
@@ -1122,50 +1153,28 @@ export const createPagBankPlan = onCall(
           }
         );
 
-        logger.info('========== PLANO CRIADO COM SUCESSO ==========');
-        logger.info('Status:', response.status);
-        logger.info('Plano criado no PagBank', {
+        planLogger.info('Plano PagBank criado com sucesso', {
           planId: response.data?.id,
           status: response.data?.status,
           referenceId: response.data?.reference_id,
+          httpStatus: response.status,
         });
 
-        // // Opcional: Salvar o plano no Firestore para controle interno
-        // if (response.data.id) {
-        //   try {
-        //     await db.collection('pagbank_plans').doc(response.data.id).set({
-        //       ...response.data,
-        //       created_at: FieldValue.serverTimestamp(),
-        //       created_by: request.auth?.uid || 'system',
-        //       environment: isSandbox ? 'sandbox' : 'production'
-        //     });
-        //     logger.info('Plano salvo no Firestore:', response.data.id);
-        //   } catch (firestoreError) {
-        //     logger.warn('Erro ao salvar plano no Firestore:', firestoreError);
-        //     // Não falhar a operação por causa disso
-        //   }
-        // }
-
-        // return {
-        //   success: true,
-        //   plan: response.data,
-        //   message: 'Plano criado com sucesso'
-        // };
+        // FIX: return foi acidentalmente comentado — a função retornava undefined no caminho feliz
+        return {
+          success: true,
+          plan: response.data,
+          message: 'Plano criado com sucesso'
+        };
 
       } catch (axiosError: any) {
-        logger.error('========== ERRO NA CRIAÇÃO DO PLANO ==========');
-        logger.error('Mensagem:', axiosError.message);
-        
         if (axiosError.response) {
-          logger.error('Status:', axiosError.response.status);
-          logger.error('Status Text:', axiosError.response.statusText);
-          logger.error('Erro retornado pelo PagBank ao criar plano', {
-            status: axiosError.response.status,
-            statusText: axiosError.response.statusText,
-            data: sanitizePagBankErrorData(axiosError.response.data),
+          planLogger.error('Erro do PagBank ao criar plano', {
+            httpStatus: axiosError.response.status,
+            httpStatusText: axiosError.response.statusText,
+            pagbankError: sanitizePagBankErrorData(axiosError.response.data),
           });
           
-          // Tratamento específico de erros do PagBank
           const errorData = axiosError.response.data;
           let errorMessage = 'Erro ao criar plano no PagBank';
           
@@ -1179,7 +1188,6 @@ export const createPagBankPlan = onCall(
             errorMessage = errorData.error;
           }
           
-          // Mapear códigos de erro específicos
           switch (axiosError.response.status) {
             case 400:
               throw new HttpsError('invalid-argument', `Dados inválidos: ${errorMessage}`);
@@ -1195,25 +1203,23 @@ export const createPagBankPlan = onCall(
               throw new HttpsError('internal', `Erro do PagBank (${axiosError.response.status}): ${errorMessage}`);
           }
         } else if (axiosError.request) {
-          logger.error('Nenhuma resposta recebida do PagBank');
+          planLogger.error('PagBank não respondeu ao criar plano', { errorMessage: axiosError.message });
           throw new HttpsError('internal', 'Sem resposta do servidor PagBank');
         } else {
-          logger.error('Erro ao configurar requisição:', axiosError.message);
+          planLogger.error('Falha ao montar requisição de criação de plano', { errorMessage: axiosError.message });
           throw new HttpsError('internal', 'Erro ao configurar requisição para PagBank');
         }
       }
 
     } catch (error: any) {
       if (error instanceof HttpsError) {
-        logger.error('HttpsError:', error.message);
         throw error;
       }
       
-      logger.error('========== ERRO GERAL ==========');
-      logger.error('Tipo:', typeof error);
-      logger.error('Nome:', error.name);
-      logger.error('Mensagem:', error.message);
-      logger.error('Stack:', error.stack);
+      planLogger.error('Erro inesperado em createPagBankPlan', {
+        errorName: (error as Error).name,
+        errorMessage: (error as Error).message,
+      });
       throw new HttpsError('internal', error.message || 'Erro interno ao criar plano');
     }
   }
@@ -1233,6 +1239,12 @@ export const sendChatNotification = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Usuário deve estar autenticado');
     }
+
+    const chatLogger = logger.child({
+      action: 'sendChatNotification',
+      requestId: generateRequestId(),
+      uid: request.auth.uid,
+    });
 
     const { token, title, body, data } = request.data;
 
@@ -1262,7 +1274,10 @@ export const sendChatNotification = onCall(
       });
       return { success: true };
     } catch (error: any) {
-      logger.error('Erro ao enviar notificação de chat:', error);
+      chatLogger.error('Erro ao enviar notificação de chat FCM', {
+        errorName: (error as Error).name,
+        errorMessage: (error as Error).message,
+      });
       throw new HttpsError('internal', 'Erro ao enviar notificação');
     }
   }
@@ -1275,15 +1290,18 @@ export const cancelPagBankSubscription = onCall(
     secrets: [PAGBANK_TOKEN_SECRET],
   },
   async (request) => {
-    logger.info("Iniciando cancelPagBankSubscription");
+    const cancelLogger = logger.child({
+      action: 'cancelPagBankSubscription',
+      requestId: generateRequestId(),
+      uid: request.auth?.uid,
+    });
+    cancelLogger.info('Iniciando cancelamento de assinatura PagBank');
 
     try {
-      // Recebe o ID da assinatura via parâmetro
       const { subscriptionId, companyID } = request.data;
       if (!subscriptionId) {
         throw new HttpsError("invalid-argument", "subscriptionId é obrigatório");
       }
-      // Recebe o CompanyID da assinatura via parâmetro
       
       if (!companyID) {
         throw new HttpsError("invalid-argument", "CompanyID é obrigatório");
@@ -1298,7 +1316,6 @@ export const cancelPagBankSubscription = onCall(
         );
       }
 
-      // Monta URL da requisição (sandbox ou produção)
       const baseUrl = "https://api.assinaturas.pagseguro.com";
       const url = `${baseUrl}/subscriptions/${subscriptionId}/cancel`;
 
@@ -1307,52 +1324,43 @@ export const cancelPagBankSubscription = onCall(
         Authorization: getPagBankAuthorizationHeader(pagBankToken),
       };
 
-      logger.info("Enviando requisição para cancelamento", { url });
+      cancelLogger.info('Enviando requisição de cancelamento ao PagBank', { companyID });
 
-      // Executa requisição PUT para cancelar assinatura
       const response = await axios.put(url, {}, { headers });
 
-      logger.info("Assinatura cancelada com sucesso!", {
-        status: response.status,
-        data: response.data,
+      cancelLogger.info('Assinatura cancelada com sucesso', {
+        companyID,
+        httpStatus: response.status,
       });
 
-      // Atualizar no Firestore
       await db.collection('companys').doc(companyID).update({
         active: false,
         subscriptionStatus: 'CANCELED',
-        
       });
-
-     
 
       return {
         success: true,
         status: response.status,
-        data: response.data,
         message: "Assinatura cancelada com sucesso",
       };
     } catch (error: any) {
-      logger.error("Erro ao cancelar assinatura", {
-        erro: error.message,
-        ...(error.response && {
-          status: error.response.status,
-          data: error.response.data,
-        }),
-      });
-
       if (error instanceof HttpsError) throw error;
 
       if (error.response) {
-        // Resposta do PagBank com erro
+        cancelLogger.error('Erro do PagBank ao cancelar assinatura', {
+          httpStatus: error.response.status,
+          pagbankError: sanitizePagBankErrorData(error.response.data),
+        });
         throw new HttpsError(
           "internal",
           error.response.data?.message ||
-            `Erro do PagBank: status ${error.response.status}`,
-          error.response.data
+            `Erro do PagBank: status ${error.response.status}`
         );
       } else {
-        // Erro inesperado ou de rede
+        cancelLogger.error('Erro inesperado ao cancelar assinatura', {
+          errorMessage: (error as Error).message,
+          errorName: (error as Error).name,
+        });
         throw new HttpsError(
           "internal",
           error.message || "Erro inesperado ao cancelar assinatura"
