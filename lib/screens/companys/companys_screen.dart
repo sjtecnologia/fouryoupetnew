@@ -14,8 +14,6 @@ import '../../models/page_manager.dart';
 
 import 'components/search_dialog.dart';
 
-final appKey = GlobalKey();
-
 // ignore: must_be_immutable
 class CompanysScreen extends StatefulWidget {
   CompanysScreen({
@@ -30,6 +28,8 @@ class CompanysScreen extends StatefulWidget {
 }
 
 class _CompanysScreenState extends State<CompanysScreen> {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
   void initState() {
     super.initState();
@@ -44,7 +44,7 @@ class _CompanysScreenState extends State<CompanysScreen> {
   Widget build(BuildContext context) {
     CustomDrawer();
     return Scaffold(
-      key: appKey,
+      key: _scaffoldKey,
       extendBodyBehindAppBar: true,
       // Remover o drawer para não exibir o menu
       appBar: AppBar(

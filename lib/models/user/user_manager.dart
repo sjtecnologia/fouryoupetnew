@@ -182,7 +182,12 @@ class UserManager extends ChangeNotifier {
           authProvider: 'google',
           userId: userCredential.user!.uid,
         );
-        onSuccess();
+        if (userapp != null) {
+          onSuccess();
+        } else {
+          onFail?.call(
+              'Erro ao carregar dados do usuário após o login com Google');
+        }
       }
     } catch (e) {
       onFail?.call('Erro ao fazer login com Google: $e');

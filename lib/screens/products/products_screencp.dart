@@ -70,36 +70,27 @@ class _ProductsScreencpState extends State<ProductsScreencp> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Consumer<ProductManager>(builder: (_, productManager, __) {
-          if (productManager.loading) {
-            return Center(
-              child: CircularProgressIndicator.adaptive(
-                backgroundColor: Colors.white,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.orangeAccent),
-              ),
-            );
+          if (productManager.search.isEmpty) {
+            return const Text('Produtos',
+                style: TextStyle(color: Colors.white));
           } else {
-            if (productManager.search.isEmpty) {
-              return const Text('Produtos',
-                  style: TextStyle(color: Colors.white));
-            } else {
-              return LayoutBuilder(builder: (_, constraints) {
-                return GestureDetector(
-                  onTap: () async {
-                    final search = await showDialog<String>(
-                        context: context,
-                        builder: (_) => SearchDialog(productManager.search));
-                    if (search != null) {
-                      productManager.search = search;
-                    }
-                  },
-                  child: Text(
-                    productManager.search,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white),
-                  ),
-                );
-              });
-            }
+            return LayoutBuilder(builder: (_, constraints) {
+              return GestureDetector(
+                onTap: () async {
+                  final search = await showDialog<String>(
+                      context: context,
+                      builder: (_) => SearchDialog(productManager.search));
+                  if (search != null) {
+                    productManager.search = search;
+                  }
+                },
+                child: Text(
+                  productManager.search,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white),
+                ),
+              );
+            });
           }
         }),
         centerTitle: true,
@@ -201,10 +192,18 @@ class _ProductsScreencpState extends State<ProductsScreencp> {
                   )
                 else
                   Expanded(
-                    child: EmptyCard(
-                      title: 'Produto não encontrado',
-                      iconData: Icons.border_clear,
-                    ),
+                    child: productManager.loading
+                        ? const Center(
+                            child: CircularProgressIndicator.adaptive(
+                              backgroundColor: Colors.white,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.orangeAccent),
+                            ),
+                          )
+                        : EmptyCard(
+                            title: 'Produto não encontrado',
+                            iconData: Icons.border_clear,
+                          ),
                   ),
               ],
             );

@@ -93,7 +93,7 @@ class BiometricAuthService {
   }
 
   /// Detecta o melhor tipo de biometria disponível no dispositivo.
-  /// Prioridade: impressão digital > rosto > íris > strong genérico.
+  /// Prioridade: rosto > impressão digital > íris > strong genérico.
   /// Retorna null se nenhuma biometria estiver disponível ou configurada.
   Future<BiometricType?> getBestAvailableBiometric() async {
     try {
@@ -103,13 +103,13 @@ class BiometricAuthService {
       final available = await getAvailableBiometrics();
       if (available.isEmpty) return null;
 
-      // Prefere impressão digital no Android
-      if (available.contains(BiometricType.fingerprint)) {
-        return BiometricType.fingerprint;
-      }
       // Aceita reconhecimento facial
       if (available.contains(BiometricType.face)) {
         return BiometricType.face;
+      }
+      // Prefere impressão digital quando Face ID não estiver disponível
+      if (available.contains(BiometricType.fingerprint)) {
+        return BiometricType.fingerprint;
       }
       // Aceita íris
       if (available.contains(BiometricType.iris)) {

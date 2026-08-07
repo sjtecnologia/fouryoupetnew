@@ -1,5 +1,6 @@
 import 'package:carousel_slider_plus/carousel_slider_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fouryoupet/common/custom_drawer/custom_drawer.dart';
@@ -209,6 +210,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           final biometricType =
                               snapshot.data?[1] as BiometricType?;
                           final isFace = biometricType == BiometricType.face;
+                          final biometricLabel = isFace
+                              ? defaultTargetPlatform == TargetPlatform.iOS
+                                  ? 'Entrar com Face ID'
+                                  : 'Entrar com Reconhecimento Facial'
+                              : 'Entrar com Impressão Digital';
                           return ElevatedButton.icon(
                             icon: Icon(isFace ? Icons.face : Icons.fingerprint,
                                 color: Colors.white, size: 24),
@@ -217,9 +223,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  isFace
-                                      ? 'Entrar com Face ID'
-                                      : 'Entrar com Impressão Digital',
+                                  biometricLabel,
                                   style: TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold),

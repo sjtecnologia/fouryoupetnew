@@ -39,26 +39,39 @@ class _AddHtState extends State<AddHt> {
   final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
+  void initState() {
+    super.initState();
+    final accommodationManager = context.read<AccommodationManager>();
+    if (widget.company != null) {
+      accommodationManager.setCompanid(widget.company!);
+    }
+    if (widget.accommodation != null) {
+      accommodationManager.categoryid = widget.accommodation!.categoryid;
+      accommodationManager.updateAcc(widget.accommodation!);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).primaryColor;
 
     final DateRangePickerController _dateRangePickerController =
         DateRangePickerController();
-    context
-        .read<AccommodationManager>()
-        .updateAcc(widget.accommodation as Accommodation);
-    context.read<AccommodationManager>().filteredHotel;
 
     //tm = context.read<AccommodationManager>().hoursfree;
 
     return Scaffold(
+      backgroundColor: const Color.fromARGB(255, 255, 111, 0),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color.fromARGB(255, 255, 111, 0),
+        elevation: 0,
         centerTitle: true,
-        title:
-            Text('Agendar Hospedagens', style: TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
+        foregroundColor: Colors.white,
+        title: const Text('Agendar Hospedagens',
+            style: TextStyle(color: Colors.white)),
         leading: IconButton(
-          icon: Icon(
+          icon: const Icon(
             Icons.clear,
             color: Colors.white,
           ),
@@ -67,37 +80,50 @@ class _AddHtState extends State<AddHt> {
           },
         ),
       ),
-      body: FormBuilder(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.max,
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: SfDateRangePicker(
-                view: DateRangePickerView.month,
-                monthViewSettings:
-                    DateRangePickerMonthViewSettings(firstDayOfWeek: 1),
-                selectionMode: DateRangePickerSelectionMode.range,
-                showActionButtons: true,
-                controller: _dateRangePickerController,
-                rangeSelectionColor: Colors.orangeAccent,
-                backgroundColor: Colors.white,
-                minDate: DateTime.now(),
-                rangeTextStyle: const TextStyle(
-                  color: Colors.white,
+      body: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color.fromARGB(255, 255, 111, 0),
+              Color.fromARGB(255, 255, 161, 0),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: FormBuilder(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: SfDateRangePicker(
+                  view: DateRangePickerView.month,
+                  monthViewSettings:
+                      DateRangePickerMonthViewSettings(firstDayOfWeek: 1),
+                  selectionMode: DateRangePickerSelectionMode.range,
+                  showActionButtons: true,
+                  controller: _dateRangePickerController,
+                  rangeSelectionColor: Colors.orangeAccent,
+                  backgroundColor: Colors.white,
+                  minDate: DateTime.now(),
+                  rangeTextStyle: const TextStyle(
+                    color: Colors.white,
+                  ),
+                  startRangeSelectionColor: primaryColor,
+                  endRangeSelectionColor: primaryColor,
+                  todayHighlightColor: primaryColor,
+                  selectionColor: primaryColor,
+                  cancelText: 'Cancelar',
+                  confirmText: 'Salvar',
+                  onSubmit: _onSubmit,
                 ),
-                startRangeSelectionColor: primaryColor,
-                endRangeSelectionColor: primaryColor,
-                todayHighlightColor: primaryColor,
-                selectionColor: primaryColor,
-                cancelText: 'Cancelar',
-                confirmText: 'Salvar',
-                onSubmit: _onSubmit,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

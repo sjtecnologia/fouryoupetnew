@@ -30,7 +30,8 @@ class ServiceManager extends ChangeNotifier {
 
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-  StreamSubscription? _subscription;
+  StreamSubscription? _eventsSubscription;
+  StreamSubscription? _agendaSubscription;
 
   bool _loading = false;
 
@@ -41,7 +42,6 @@ class ServiceManager extends ChangeNotifier {
   }
 
   ServiceManager() {
-    _subscription?.cancel();
     _loading = false;
     //_listenToServices();
     _listenToEvents();
@@ -205,7 +205,7 @@ class ServiceManager extends ChangeNotifier {
   }
 
   void _listenToEvents() {
-    _subscription = firestore
+    _eventsSubscription = firestore
         .collection('events')
         .orderBy('event_date')
         .orderBy('serviceid')
@@ -220,22 +220,18 @@ class ServiceManager extends ChangeNotifier {
   }
 
   void _listenToAgenda() {
-    _subscription = firestore
-        .collection('available_times')
-        //.where('companyID', isEqualTo: companyID)
-        .snapshots()
-        .listen((h) {
+    _agendaSubscription =
+        firestore.collection('available_times').snapshots().listen((h) {
       htemp?.clear();
       for (final doc in h.docs) {
         htemp?.add(AvailableTime.fromDocument(doc));
       }
-      // notifyListeners();
+      notifyListeners();
     });
   }
 
   List<AppEvent> get filteredEvent {
     loading = true;
-    _listenToEvents();
     List<AppEvent> filteredEvent = [];
 
     filteredEvent.addAll(events.where((e) =>
@@ -248,128 +244,119 @@ class ServiceManager extends ChangeNotifier {
   }
 
   List<String> get ghfree {
-    loading = true;
-    _listenToAgenda();
-    //List<String> ghfree = [];
-    hfree.clear();
-    List<AvailableTime> hours2 = [];
-    hours2.clear();
-    hours2.addAll(htemp!.where((e) =>
-        e.dateSchedule!.day == dateEvent!.day &&
-        e.dateSchedule!.month == dateEvent!.month &&
-        e.dateSchedule!.year == dateEvent!.year &&
-        e.companyID == companyID));
-    final hournow = DateTime.now().hour.toString() +
-        ':' +
-        DateTime.now().minute.toStringAsPrecision(2);
+    // Caminho 1: verificar se há agenda na tabela available_times
+    // para este fornecedor e data selecionada
+    debugPrint(
+        '[ghfree] companyID=$companyID | dateEvent=$dateEvent | htemp.length=${htemp?.length}');
+    final agendaSlots = htemp!
+        .where((e) =>
+            e.dateSchedule!.day == dateEvent!.day &&
+            e.dateSchedule!.month == dateEvent!.month &&
+            e.dateSchedule!.year == dateEvent!.year &&
+            e.companyID == companyID)
+        .toList();
 
-    for (final hd in hours2) {
-      for (final h in hd.timeOfs!) {
-        if (h.available_slots! > 0) {
-          hfree.add(h.scheduleT ?? '');
-        }
-      }
-    }
-
-    hfree.sort();
-    for (int i = 0; i < hfree.length; i++) {
-      List<AppEvent> ev = [];
-
-      ev.addAll(filteredEvent.where((e) =>
-          (formatter.format(e.event_date!.hour) +
-              ':' +
-              formatter.format(e.event_date!.minute)) ==
-          hfree[i]));
-      int qts = 0;
-      if (service != null) qts = service!.qtdatd!.toInt();
-
-      if (ev.length > 0 && ev.length >= qts) {
-        for (final h in hours2) {
-          for (final h2 in h.timeOfs!) {
-            for (final evt in ev) {
-              if (h2.scheduleT ==
-                  (evt.event_date!.hour.toString() +
-                      ":" +
-                      evt.event_date!.minute.toString()))
-                //if (h2.available_slots! <= ev.length) {
-                hfree.remove(h2.scheduleT);
-              //}
-            }
+    if (agendaSlots.isNotEmpty) {
+      hfree.clear();
+      for (final slot in agendaSlots) {
+        for (final h in slot.timeOfs!) {
+          if ((h.available_slots ?? 0) > 0) {
+            hfree.add(h.scheduleT ?? '');
           }
         }
       }
-      if (dateEvent!.day == DateTime.now().day &&
-          dateEvent!.month == DateTime.now().month &&
-          dateEvent!.year == DateTime.now().year) {
-        String nhournow = hournow.replaceAll(':', '');
-        nhournow = nhournow.replaceAll('.', '');
+      hfree.sort();
 
-        hfree.removeWhere((element) =>
-            num.parse(element.replaceAll(':', '')) < num.parse(nhournow) + 30);
-      }
+      // Remove slots já lotados (confirma contra a coleção events)
+      final booked = filteredEvent;
+      final qtd = service?.qtdatd ?? 1;
+      hfree.removeWhere((hour) {
+        final count = booked
+            .where((e) =>
+                '${formatter.format(e.event_date!.hour)}:${formatter.format(e.event_date!.minute)}' ==
+                hour)
+            .length;
+        return count >= qtd;
+      });
+
+      _removePastHours(hfree);
+      debugPrint(
+          '[ghfree] Caminho 1 (available_times): ${hfree.length} horários → $hfree');
+      return hfree;
     }
 
-    // for (int i = 0; i < hfree.length; i++) {
-    //   ghfree.add(hfree[i]);
-    // }
-    // ghfree = hfree;
-    htemp?.clear();
-    var hhfree = hfree;
-    if (hfree.isEmpty) {
-      hhfree = hoursfree;
-    }
-    loading = false;
-    return hhfree;
-  }
-
-  List<String> get hoursfree {
-    final List<String> hoursfree = [];
-    loading = true;
-    List<String> hours2 = [];
-    hours2.clear();
-    final hournow = DateTime.now().hour.toString() +
-        ':' +
-        DateTime.now().minute.toStringAsPrecision(2);
-
-    for (int i = 0; i < service!.hours!.length; i++) {
-      hours2.add(service!.hours![i]);
-    }
-
-    hours2.sort();
-    for (int i = 0; i < hours2.length; i++) {
-      List<AppEvent> ev = [];
-
-      ev.addAll(filteredEvent.where((e) =>
-          (formatter.format(e.event_date!.hour) +
-              ':' +
-              formatter.format(e.event_date!.minute)) ==
-          hours2[i]));
-      int qts = service!.qtdatd!.toInt();
-
-      if (ev.length >= qts) {
-        hours2.remove(hours2[i]);
-      }
-      if (dateEvent!.day == DateTime.now().day &&
-          dateEvent!.month == DateTime.now().month &&
-          dateEvent!.year == DateTime.now().year) {
-        String nhournow = hournow.replaceAll(':', '');
-        nhournow = nhournow.replaceAll('.', '');
-
-        hours2.removeWhere((element) =>
-            num.parse(element.replaceAll(':', '')) < num.parse(nhournow) + 30);
-      }
-    }
-
-    for (int i = 0; i < hours2.length; i++) {
-      hoursfree.add(hours2[i]);
-    }
-    loading = false;
+    // Caminho 2: sem agenda na tabela, monta a partir da config do serviço
+    debugPrint('[ghfree] Sem agenda → Caminho 2 (config serviço)');
     return hoursfree;
   }
 
-  void _listenToServices() async {
+  /// Remove horários passados (+ 30 min de antecedência) quando a data
+  /// selecionada for hoje.
+  void _removePastHours(List<String> hours) {
+    if (dateEvent!.day != DateTime.now().day ||
+        dateEvent!.month != DateTime.now().month ||
+        dateEvent!.year != DateTime.now().year) return;
+    final nowMinutes = DateTime.now().hour * 60 + DateTime.now().minute + 30;
+    hours.removeWhere((hour) {
+      final parts = hour.split(':');
+      final h = int.tryParse(parts[0]) ?? 0;
+      final m = int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0;
+      return (h * 60 + m) < nowMinutes;
+    });
+  }
+
+  /// Caminho 2: monta horários a partir da configuração do serviço
+  /// (campos hinit, hend, hminute da tabela services), filtra lotados e passados.
+  List<String> get hoursfree {
+    if (service == null) {
+      debugPrint('[hoursfree] service é null, retornando []');
+      return [];
+    }
+    debugPrint(
+        '[hoursfree] service=${service!.name} | hours=${service!.hours} | hinit=${service!.hinit} | hend=${service!.hend} | hminute=${service!.hminute}');
+
+    List<String> hours2 = [];
+
+    // Usa o array 'hours' já salvo no serviço, ou gera a partir de hinit/hend/hminute
+    if (service!.hours != null && service!.hours!.isNotEmpty) {
+      hours2 = List<String>.from(service!.hours!);
+    } else if ((service!.hinit ?? 0) > 0 &&
+        (service!.hend ?? 0) > 0 &&
+        (service!.hminute ?? 0) > 0) {
+      for (int h = service!.hinit!; h <= service!.hend!; h++) {
+        for (int m = 0; m < 60; m += service!.hminute!) {
+          hours2.add('${formatter.format(h)}:${formatter.format(m)}');
+        }
+      }
+    }
+
+    if (hours2.isEmpty) return [];
+
+    hours2.sort();
+
+    // Remove slots já lotados
+    final booked = filteredEvent;
+    final qtd = service!.qtdatd ?? 1;
+    hours2.removeWhere((hour) {
+      final count = booked
+          .where((e) =>
+              '${formatter.format(e.event_date!.hour)}:${formatter.format(e.event_date!.minute)}' ==
+              hour)
+          .length;
+      return count >= qtd;
+    });
+
+    // Remove horários passados se for hoje
+    _removePastHours(hours2);
+
+    return hours2;
+  }
+
+  StreamSubscription? _servicesSubscription;
+
+  void _listenToServices() {
     if (companyID != null && companyID != '0' && companyID != '') {
-      _subscription = await firestore
+      _servicesSubscription = firestore
           .collection('services')
           .where('deleted', isEqualTo: false)
           .where('companyID', isEqualTo: companyID)
@@ -381,7 +368,7 @@ class ServiceManager extends ChangeNotifier {
         }
       });
     } else if (companyID == '0') {
-      _subscription = await firestore
+      _servicesSubscription = firestore
           .collection('services')
           .where('deleted', isEqualTo: false)
           .snapshots()
@@ -418,7 +405,9 @@ class ServiceManager extends ChangeNotifier {
   @override
   void dispose() {
     super.dispose();
-    _subscription?.cancel();
+    _eventsSubscription?.cancel();
+    _agendaSubscription?.cancel();
+    _servicesSubscription?.cancel();
   }
 
   void updateUser(Userapp? user) {

@@ -38,10 +38,15 @@ class AccommodationManager extends ChangeNotifier {
     }
 
     try {
-      final querySnapshot = await firestore
+      Query<Map<String, dynamic>> query = firestore
           .collection('accommodation')
-          .where('companyID', isEqualTo: _companyID)
-          .get();
+          .where('deleted', isEqualTo: false);
+
+      if (_companyID != '0') {
+        query = query.where('companyID', isEqualTo: _companyID);
+      }
+
+      final querySnapshot = await query.get();
 
       accommodations.clear();
       for (var doc in querySnapshot.docs) {
@@ -121,7 +126,8 @@ class AccommodationManager extends ChangeNotifier {
 
         debugPrint('Documento ${doc.id} atualizado com sucesso!');
       } else {
-        debugPrint('Nome do accommodation não encontrado no documento ${doc.id}');
+        debugPrint(
+            'Nome do accommodation não encontrado no documento ${doc.id}');
       }
     }
 
@@ -132,7 +138,7 @@ class AccommodationManager extends ChangeNotifier {
 
   set categoryid(String? value) {
     _categoryid = value;
-    // notifyListeners();
+    _listenToHotel();
   }
 
   String get search => _search;
@@ -176,7 +182,12 @@ class AccommodationManager extends ChangeNotifier {
 
   List<Accommodation> get filteredAcccompany {
     final List<Accommodation> filteredAcccompany = [];
-    if (categoryid != '0') {
+    if (companyID == '0' && categoryid == '0') {
+      filteredAcccompany.addAll(accommodations);
+    } else if (companyID == '0' && categoryid != '0') {
+      filteredAcccompany.addAll(
+          accommodations.where((p) => p.categoryid!.contains(categoryid!)));
+    } else if (categoryid != '0') {
       filteredAcccompany.addAll(accommodations.where((p) =>
           p.companyID!.contains(companyID!) &&
           p.categoryid!.contains(categoryid!)));
@@ -193,14 +204,22 @@ class AccommodationManager extends ChangeNotifier {
     return filteredHotel;
   }
 
-  void _listenToHotel() async {
-    _subscription = await firestore
-        .collection('hotel')
-        .where('accid', isEqualTo: accommodation?.id)
-        .where('categoryID', isEqualTo: _categoryid)
-        .where('companyID', isEqualTo: _companyID)
-        .snapshots()
-        .listen((h) {
+  void _listenToHotel() {
+    _subscription?.cancel();
+
+    Query<Map<String, dynamic>> query = firestore.collection('hotel');
+
+    if (accommodation?.id != null && accommodation!.id!.isNotEmpty) {
+      query = query.where('accid', isEqualTo: accommodation!.id);
+    }
+    if (_categoryid != null && _categoryid!.isNotEmpty && _categoryid != '0') {
+      query = query.where('categoryID', isEqualTo: _categoryid);
+    }
+    if (_companyID != null && _companyID!.isNotEmpty && _companyID != '0') {
+      query = query.where('companyID', isEqualTo: _companyID);
+    }
+
+    _subscription = query.snapshots().listen((h) {
       hotel.clear();
       for (final doc in h.docs) {
         hotel.add(Hotel.fromDocument(doc));
@@ -288,9 +307,11 @@ class AccommodationManager extends ChangeNotifier {
 
   void updateAcc(Accommodation accommodation) {
     this.accommodation = accommodation;
+    _listenToHotel();
   }
 
   void setCompanid(String value) {
     companyID = value;
+    _listenToHotel();
   }
 }

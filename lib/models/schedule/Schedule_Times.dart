@@ -8,8 +8,19 @@ class ScheduleTimes {
   int? available_slots;
 
   ScheduleTimes.fromMap(Map<String, dynamic> map) {
-    scheduleT = map['scheduleT'] as String?;
-    available_slots = map['available_slots'] as int?;
+    final dynamic rawSchedule = map['scheduleT'] ?? map['schedule'];
+    scheduleT = rawSchedule?.toString();
+
+    final dynamic rawSlots = map['available_slots'] ?? map['availableSlots'];
+    if (rawSlots is int) {
+      available_slots = rawSlots;
+    } else if (rawSlots is double) {
+      available_slots = rawSlots.toInt();
+    } else if (rawSlots is String) {
+      available_slots = int.tryParse(rawSlots.trim());
+    } else {
+      available_slots = null;
+    }
   }
 
   ScheduleTimes clone() {

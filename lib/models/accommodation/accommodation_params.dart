@@ -11,6 +11,6 @@ class AccommodationParams extends ChangeNotifier {
       CategoriesSectionItem categoriesSectionItem, int homeclic) {
     companyid = company.id;
     categoryid = categoriesSectionItem.pos;
-    homeclic = homeclic;
+    this.homeclic = homeclic;
   }
 }

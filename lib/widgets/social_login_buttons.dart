@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
+import 'package:local_auth/local_auth.dart';
 
 class SocialLoginButton extends StatelessWidget {
   final String text;
@@ -178,24 +179,32 @@ class BiometricLoginButton extends StatelessWidget {
   final VoidCallback onPressed;
   final bool isLoading;
   final String text;
+  final BiometricType? biometricType;
 
   const BiometricLoginButton({
     Key? key,
     required this.onPressed,
     this.isLoading = false,
     this.text = 'Entrar com Biometria',
+    this.biometricType,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final iconData = biometricType == BiometricType.face
+        ? Icons.face
+        : biometricType == BiometricType.fingerprint
+            ? Icons.fingerprint
+            : defaultTargetPlatform == TargetPlatform.iOS
+                ? Icons.face
+                : Icons.fingerprint;
+
     return SocialLoginButton(
       text: text,
       backgroundColor: Theme.of(context).primaryColor,
       textColor: Colors.white,
       icon: Icon(
-        defaultTargetPlatform == TargetPlatform.iOS
-            ? Icons.face
-            : Icons.fingerprint,
+        iconData,
         size: 24,
       ),
       onPressed: onPressed,

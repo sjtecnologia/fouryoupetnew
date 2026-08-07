@@ -293,7 +293,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   message: "Cadastro concluído com sucesso",
                                 ),
                               );
-                              if (userManager.userapp!.address == null) {
+                              final addr = userManager.userapp?.address;
+                              if (addr == null || addr.isEmpty) {
                                 Navigator.of(context).pushNamed('/listadress');
                               } else {
                                 Navigator.of(context).pop();
