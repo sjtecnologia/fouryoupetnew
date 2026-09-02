@@ -110,7 +110,12 @@ class CartManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addToCart(Product product) {
+  bool addToCart(Product product) {
+    final hasAnotherPetshop = items.any(
+      (item) => item.companyID != product.companyID,
+    );
+    if (hasAnotherPetshop) return false;
+
     try {
       final e = items.firstWhere((p) => p.stackable(product));
       e.increment();
@@ -124,6 +129,7 @@ class CartManager extends ChangeNotifier {
       _loadUserAddress();
       _onItemUpdated();
     }
+    return true;
   }
 
   void removeOfCart(CartProduct cartProduct) {
