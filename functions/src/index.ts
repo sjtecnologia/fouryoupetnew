@@ -1369,3 +1369,5 @@ export const cancelPagBankSubscription = onCall(
     }
   }
 );
+
+export * from "./marketplace/functions";
