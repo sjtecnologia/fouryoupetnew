@@ -191,15 +191,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Fazer logout ao iniciar o app (garante que sempre começa deslogado)
-    _signOutOnStart();
-  }
-
-  Future<void> _signOutOnStart() async {
-    // Dá um pequeno delay para garantir que o Firebase está inicializado
-    await Future.delayed(const Duration(milliseconds: 500));
-    // Faz logout do Firebase mas mantém credenciais salvas para biometria
-    await FirebaseAuth.instance.signOut();
   }
 
   @override
