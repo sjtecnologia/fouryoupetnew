@@ -96,9 +96,8 @@ O primeiro deploy deve permanecer em sandbox. Depois do build e dos testes:
 cd functions
 npm ci
 npm test
-firebase deploy --only functions:beginMercadoPagoConnection,functions:mercadoPagoOAuthCallback,functions:createMarketplaceCheckout,functions:mercadoPagoPaymentWebhook,functions:refundMarketplaceOrder,functions:releaseExpiredMarketplaceReservations
+firebase deploy --only functions:beginMercadoPagoConnection,functions:mercadoPagoOAuthCallback,functions:createMarketplaceCheckout,functions:mercadoPagoPaymentWebhook,functions:refundMarketplaceOrder,functions:releaseExpiredMarketplaceReservations,functions:notifyApprovedMarketplaceOrder
 ```
 
 Não faça deploy da integração enquanto as regras, os segredos, o OAuth e a URL
 do webhook não estiverem configurados no mesmo projeto Firebase.
-
