@@ -149,7 +149,6 @@ export const mercadoPagoOAuthCallback = onRequest(
         clientSecret: MP_CLIENT_SECRET.value(),
         code,
         redirectUri: MP_REDIRECT_URI.value(),
-        state,
       });
       await saveSellerCredentials(db(), payload.companyId, credentials);
       response.redirect(
