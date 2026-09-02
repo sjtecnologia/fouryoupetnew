@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
 import { logger } from "firebase-functions";
 import { defineBoolean } from "firebase-functions/params";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import {
@@ -394,5 +396,70 @@ export const releaseExpiredMarketplaceReservations = onSchedule(
     logger.info("Expired marketplace reservations released", {
       count: snapshot.size,
     });
+  },
+);
+
+export const notifyApprovedMarketplaceOrder = onDocumentUpdated(
+  {
+    region: REGION,
+    document: "orders/{orderId}",
+    timeoutSeconds: 60,
+    memory: "128MiB",
+  },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (
+      !after ||
+      after.paymentProvider !== "MERCADO_PAGO" ||
+      before?.paymentStatus === "PAYMENT_APPROVED" ||
+      after.paymentStatus !== "PAYMENT_APPROVED"
+    ) {
+      return;
+    }
+
+    const orderId = event.params.orderId;
+    const companyId = String(after.companyID ?? "");
+    const userId = String(after.user ?? "");
+    const adminSnapshot = await db()
+      .collection("admins")
+      .where("companyID", "==", companyId)
+      .get();
+    const recipientIds = [
+      ...new Set([
+        userId,
+        ...adminSnapshot.docs.map((document) => document.id),
+      ].filter(Boolean)),
+    ];
+    const tokenSnapshots = await Promise.all(
+      recipientIds.map((uid) =>
+        db().collection("users").doc(uid).collection("tokens").get(),
+      ),
+    );
+    const tokens = [
+      ...new Set(
+        tokenSnapshots.flatMap((snapshot) =>
+          snapshot.docs.map((document) =>
+            String(document.data().token ?? document.id),
+          ),
+        ),
+      ),
+    ].filter(Boolean);
+    if (tokens.length === 0) return;
+
+    for (let offset = 0; offset < tokens.length; offset += 500) {
+      await getMessaging().sendEachForMulticast({
+        tokens: tokens.slice(offset, offset + 500),
+        notification: {
+          title: "Pagamento aprovado",
+          body: `Pedido #${orderId} confirmado no Mercado Pago`,
+        },
+        data: {
+          type: "marketplace_order_paid",
+          orderId,
+          companyId,
+        },
+      });
+    }
   },
 );
