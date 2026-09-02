@@ -49,7 +49,7 @@ class Order {
       payId = doc.get('payId') as String?;
       Map<String, dynamic> dataMap = doc.data() as Map<String, dynamic>;
       if (dataMap.containsKey('discount')) {
-        discount = doc.get('discount') as double?;
+        discount = (doc.get('discount') as num?)?.toDouble();
       }
       if (dataMap.containsKey('couponCode')) {
         couponCode = doc.get('couponCode') as String?;
