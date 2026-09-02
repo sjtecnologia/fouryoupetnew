@@ -165,9 +165,21 @@ class ProductScreen extends StatelessWidget {
                             onPressed: product.selectedSize != null
                                 ? () {
                                     if (userManager.isLoggedIn) {
-                                      context
+                                      final added = context
                                           .read<CartManager>()
                                           .addToCart(product);
+                                      if (!added) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Finalize a compra do petshop atual '
+                                              'antes de adicionar itens de outra loja.',
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
                                       Navigator.of(context).pushNamed('/cart');
                                     } else {
                                       Navigator.of(context).pushNamed('/login');
