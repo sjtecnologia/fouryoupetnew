@@ -72,7 +72,6 @@ export async function exchangeAuthorizationCode(input: {
   clientSecret: string;
   code: string;
   redirectUri: string;
-  state: string;
 }): Promise<MercadoPagoOAuthCredentials> {
   const response = await axios.post(
     `${API_BASE_URL}/oauth/token`,
@@ -82,7 +81,6 @@ export async function exchangeAuthorizationCode(input: {
       grant_type: "authorization_code",
       code: input.code,
       redirect_uri: input.redirectUri,
-      state: input.state,
     }),
     {
       headers: {
