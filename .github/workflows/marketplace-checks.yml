@@ -1,0 +1,34 @@
+name: Marketplace checks
+
+on:
+  pull_request:
+    paths:
+      - "functions/**"
+      - "lib/models/checkout_manager.dart"
+      - "lib/models/cart/cart_manager.dart"
+      - "lib/models/order/order.dart"
+      - "lib/screens/checkout/**"
+      - "lib/screens/edit_company/**"
+      - "lib/services/mercado_pago_service.dart"
+      - ".github/workflows/marketplace-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  functions:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+      - run: npm ci
+      - run: npm test
+
