@@ -32,3 +32,21 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze changed Flutter files
+        run: |
+          flutter analyze --no-fatal-infos --no-fatal-warnings lib/models/checkout_manager.dart
+          flutter analyze --no-fatal-infos --no-fatal-warnings lib/models/cart/cart_manager.dart
+          flutter analyze --no-fatal-infos --no-fatal-warnings lib/models/order/order.dart
+          flutter analyze --no-fatal-infos --no-fatal-warnings lib/screens/checkout/checkout_screen.dart
+          flutter analyze --no-fatal-infos --no-fatal-warnings lib/screens/product/product_screen.dart
+          flutter analyze --no-fatal-infos --no-fatal-warnings lib/screens/edit_company/edit_company_screen.dart
+          flutter analyze --no-fatal-infos --no-fatal-warnings lib/services/mercado_pago_service.dart
