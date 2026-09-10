@@ -1,0 +1,29 @@
+// Mesclar dentro de service cloud.firestore / match /databases/{database}/documents.
+// Este arquivo e um complemento; nao substitui as regras atuais sem revisao.
+
+match /companys/{companyId}/private_integrations/{document=**} {
+  allow read, write: if false;
+}
+
+match /checkout_requests/{requestId} {
+  allow read, write: if false;
+}
+
+match /payment_events/{eventId} {
+  allow read, write: if false;
+}
+
+match /oauth_state_uses/{stateId} {
+  allow read, write: if false;
+}
+
+match /companys/{companyId}/commission_periods/{periodId} {
+  allow read, write: if false;
+}
+
+// Na regra existente de orders, remova create do cliente. Cloud Functions com
+// Admin SDK ignoram regras e passam a ser a unica autoridade para criar pedidos.
+// Para atualizacoes do petshop, permita somente campos operacionais explicitamente
+// aprovados (por exemplo status), nunca payment, paymentStatus, valores, user,
+// items, companyID, estoque, cupom, comissao ou pontos.
+

@@ -11,6 +11,7 @@ import 'package:fouryoupet/models/user/user_manager.dart';
 import 'package:fouryoupet/screens/edit_company/components/celular_field.dart';
 import 'package:fouryoupet/screens/edit_company/components/contract_dialog.dart';
 import 'package:fouryoupet/services/contract_service.dart';
+import 'package:fouryoupet/screens/edit_company/components/mercado_pago_connection_card.dart';
 
 import 'package:provider/provider.dart';
 import 'package:fouryoupet/models/company/company.dart';
@@ -428,6 +429,9 @@ class _EditCompanyScreenState extends State<EditCompanyScreen> {
                             ],
                           ),
                         ),
+
+                        if (_company.id != null)
+                          MercadoPagoConnectionCard(companyId: _company.id!),
 
                         // ✅ FORMULÁRIO DA EMPRESA - CARD COM FUNDO BRANCO
                         Card(

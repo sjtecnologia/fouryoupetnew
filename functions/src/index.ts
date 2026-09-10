@@ -150,7 +150,15 @@ export const onNewOrder = onDocumentCreated("/orders/{orderId}", async (event) =
     logger.warn(`Evento de novo pedido ${orderId} sem dados.`);
     return;
   }
-  const companyID = event.data.data().companyID;
+  const orderData = event.data.data();
+  if (
+    orderData.paymentProvider === "MERCADO_PAGO" &&
+    orderData.paymentStatus !== "PAYMENT_APPROVED"
+  ) {
+    logger.info(`Pedido ${orderId} aguardando pagamento; notificacao adiada.`);
+    return;
+  }
+  const companyID = orderData.companyID;
 
   logger.info(`Novo pedido criado com ID: ${orderId} para a empresa: ${companyID}`);
 
@@ -1369,3 +1377,5 @@ export const cancelPagBankSubscription = onCall(
     }
   }
 );
+
+export * from "./marketplace/functions";
