@@ -12,10 +12,32 @@ import 'package:top_snackbar_flutter/top_snack_bar.dart';
 import '../../models/page_manager.dart';
 
 import 'components/cpf_field.dart';
+import '../../services/pagbank_service.dart';
 
-class CheckoutScreen extends StatelessWidget {
+class CheckoutScreen extends StatefulWidget {
+  const CheckoutScreen({super.key});
+
+  @override
+  State<CheckoutScreen> createState() => _CheckoutScreenState();
+}
+
+class _CheckoutScreenState extends State<CheckoutScreen> {
   final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+  final _cardNumber = TextEditingController();
+  final _holder = TextEditingController();
+  final _expiry = TextEditingController();
+  final _cvv = TextEditingController();
+  String _paymentMethod = 'PIX';
+
+  @override
+  void dispose() {
+    _cardNumber.dispose();
+    _holder.dispose();
+    _expiry.dispose();
+    _cvv.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +121,57 @@ class CheckoutScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12)),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
-                            child: CpfField(),
+                            child: Column(
+                              children: [
+                                CpfField(),
+                                DropdownButtonFormField<String>(
+                                  value: _paymentMethod,
+                                  decoration: const InputDecoration(
+                                      labelText: 'Forma de pagamento'),
+                                  items: const [
+                                    DropdownMenuItem(
+                                        value: 'PIX', child: Text('PIX')),
+                                    DropdownMenuItem(
+                                        value: 'CREDIT_CARD',
+                                        child: Text('Cartão de crédito')),
+                                  ],
+                                  onChanged: (value) =>
+                                      setState(() => _paymentMethod = value!),
+                                ),
+                                if (_paymentMethod == 'CREDIT_CARD') ...[
+                                  TextFormField(
+                                      controller: _holder,
+                                      decoration: const InputDecoration(
+                                          labelText: 'Nome no cartão'),
+                                      validator: (v) => v!.isEmpty
+                                          ? 'Informe o titular'
+                                          : null),
+                                  TextFormField(
+                                      controller: _cardNumber,
+                                      decoration: const InputDecoration(
+                                          labelText: 'Número do cartão'),
+                                      keyboardType: TextInputType.number,
+                                      validator: (v) => v!.isEmpty
+                                          ? 'Informe o cartão'
+                                          : null),
+                                  TextFormField(
+                                      controller: _expiry,
+                                      decoration: const InputDecoration(
+                                          labelText: 'Validade MM/AAAA'),
+                                      validator: (v) => v!.isEmpty
+                                          ? 'Informe a validade'
+                                          : null),
+                                  TextFormField(
+                                      controller: _cvv,
+                                      decoration: const InputDecoration(
+                                          labelText: 'CVV'),
+                                      obscureText: true,
+                                      keyboardType: TextInputType.number,
+                                      validator: (v) =>
+                                          v!.isEmpty ? 'Informe o CVV' : null),
+                                ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -108,7 +180,26 @@ class CheckoutScreen extends StatelessWidget {
                         onPressed: () async {
                           if (formKey.currentState!.validate()) {
                             formKey.currentState!.save();
+                            String? encryptedCard;
+                            if (_paymentMethod == 'CREDIT_CARD') {
+                              final parts = _expiry.text.split('/');
+                              encryptedCard =
+                                  await PagBankService().encryptCard(
+                                publicKey:
+                                    await PagBankService().getPublicKey(),
+                                cardNumber:
+                                    _cardNumber.text.replaceAll(' ', ''),
+                                cardHolder: _holder.text,
+                                expiryMonth: parts.first,
+                                expiryYear: parts.length > 1 ? parts.last : '',
+                                cvv: _cvv.text,
+                                context: context,
+                              );
+                            }
                             checkoutManager.checkout(
+                                paymentMethod: _paymentMethod,
+                                encryptedCard: encryptedCard,
+                                securityCode: _cvv.text,
                                 onStockFail: (e) {
                                   Navigator.of(context).popUntil((route) =>
                                       route.settings.name == '/cart');
@@ -124,7 +215,7 @@ class CheckoutScreen extends StatelessWidget {
                                 },
                                 couponManager: couponManager,
                                 loyaltyManager: loyaltyManager,
-                                onSuccess: (order) {
+                                onSuccess: (order, payment) {
                                   // Calcular pontos ganhos
                                   final orderValue =
                                       order.price?.toDouble() ?? 0.0;
@@ -140,8 +231,9 @@ class CheckoutScreen extends StatelessWidget {
                                   showTopSnackBar(
                                     Overlay.of(context),
                                     CustomSnackBar.success(
-                                      message:
-                                          "Pedido realizado! Você ganhou $points pontos! 🎉",
+                                      message: payment.status == 'PAID'
+                                          ? "Pedido realizado! Você ganhou $points pontos! 🎉"
+                                          : "PIX criado. Escaneie o QR Code para pagar.",
                                     ),
                                   );
 

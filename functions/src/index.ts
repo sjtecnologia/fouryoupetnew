@@ -1,6 +1,6 @@
 // Imports do Firebase Admin SDK (módulos específicos)
 import { initializeApp } from "firebase-admin/app";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getMessaging, AndroidConfig } from "firebase-admin/messaging";
 
 // Imports do Firebase Functions v2
@@ -40,6 +40,14 @@ function getPagBankAuthorizationHeader(token: string): string {
   return token.startsWith("Bearer ") ? token : `Bearer ${token}`;
 }
 
+function requirePagBankToken(): string {
+  const token = process.env.PAGBANK_TOKEN;
+  if (!token) {
+    throw new HttpsError('failed-precondition', 'Token do PagBank não configurado');
+  }
+  return token;
+}
+
 function sanitizePagBankErrorData(data: any) {
   if (!data) return undefined;
 
@@ -54,6 +62,172 @@ function sanitizePagBankErrorData(data: any) {
       : undefined,
   };
 }
+
+const PAGBANK_ORDERS_URL = 'https://api.pagseguro.com/orders';
+
+/**
+ * Cria um pedido transacional no PagBank (cartão ou PIX).
+ */
+export const createPaymentOrder = onCall(
+  {
+    timeoutSeconds: 60,
+    memory: '256MiB',
+    secrets: [PAGBANK_TOKEN_SECRET],
+  },
+  async (request) => {
+    const paymentLogger = logger.child({
+      action: 'createPaymentOrder',
+      requestId: generateRequestId(),
+      uid: request.auth?.uid,
+    });
+
+    try {
+      if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Usuário deve estar autenticado');
+      }
+
+      const { companyId, items, amount, customer, paymentMethod, card, securityCode } = request.data || {};
+      if (!companyId || !Array.isArray(items) || items.length === 0 ||
+          !Number.isInteger(amount) || amount <= 0 || !customer ||
+          !customer.name || !customer.email || !customer.cpf || !customer.phone ||
+          !['CREDIT_CARD', 'PIX'].includes(paymentMethod)) {
+        throw new HttpsError('invalid-argument', 'Dados inválidos para criar o pedido');
+      }
+
+      if (paymentMethod === 'CREDIT_CARD' && (!card?.encrypted || !securityCode)) {
+        throw new HttpsError('invalid-argument', 'Cartão criptografado e código de segurança são obrigatórios');
+      }
+
+      const token = requirePagBankToken();
+
+      const phone = String(customer.phone).replace(/\D/g, '');
+      const pagBankItems = items.map((item: any, index: number) => ({
+        reference_id: String(item.reference_id || item.id || `${companyId}-${index + 1}`),
+        name: String(item.name || 'Item'),
+        quantity: Number.isInteger(item.quantity) && item.quantity > 0 ? item.quantity : 1,
+        unit_amount: Number.isInteger(item.unit_amount) && item.unit_amount > 0
+          ? item.unit_amount
+          : amount,
+      }));
+
+      const orderData: any = {
+        reference_id: `ORDER_${companyId}_${Date.now()}`,
+        customer: {
+          name: String(customer.name).trim(),
+          email: String(customer.email).trim(),
+          tax_id: String(customer.cpf).replace(/\D/g, ''),
+          phones: [{
+            country: '55',
+            area: phone.substring(0, 2),
+            number: phone.substring(2),
+            type: 'MOBILE',
+          }],
+        },
+        items: pagBankItems,
+      };
+
+      if (paymentMethod === 'CREDIT_CARD') {
+        orderData.charges = [{
+          reference_id: `CHARGE_${companyId}_${Date.now()}`,
+          description: 'Pagamento FourYouPet',
+          amount: { value: amount, currency: 'BRL' },
+          payment_method: {
+            type: 'CREDIT_CARD',
+            installments: 1,
+            capture: true,
+            card: {
+              encrypted: card.encrypted,
+              security_code: securityCode,
+              store: false,
+              holder: { name: String(customer.name).trim(), tax_id: String(customer.cpf).replace(/\D/g, '') },
+            },
+          },
+        }];
+      } else {
+        orderData.qr_codes = [{ amount: { value: amount }, arrangements: ['PAGBANK'] }];
+      }
+
+      paymentLogger.info('Enviando pedido transacional ao PagBank', { amount, status: 'ENVIADO' });
+      const response = await axios.post(PAGBANK_ORDERS_URL, orderData, {
+        headers: {
+          accept: 'application/json',
+          Authorization: getPagBankAuthorizationHeader(token),
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = response.data;
+      const charge = data?.charges?.[0];
+      const qrCode = data?.qr_codes?.[0];
+      const status = charge?.status || data?.status || 'WAITING';
+      paymentLogger.info('Pedido transacional criado com sucesso', { amount, status });
+
+      return {
+        success: true,
+        paymentId: data?.id,
+        status,
+        qrcode: qrCode?.text,
+        copyPaste: qrCode?.text,
+        message: charge?.payment_response?.message,
+      };
+    } catch (error: any) {
+      if (error instanceof HttpsError) throw error;
+      if (axios.isAxiosError(error)) {
+        paymentLogger.error('Erro na requisição de pagamento ao PagBank', {
+          httpStatus: error.response?.status,
+          errorData: sanitizePagBankErrorData(error.response?.data),
+        });
+        throw new HttpsError(
+          error.response?.status === 400 ? 'invalid-argument' : 'internal',
+          error.response?.data?.message || 'Erro ao processar pagamento'
+        );
+      }
+      paymentLogger.error('Erro inesperado ao criar pedido de pagamento', {
+        errorName: error?.name,
+        errorMessage: error?.message,
+      });
+      throw new HttpsError('internal', 'Erro ao criar pedido de pagamento');
+    }
+  }
+);
+
+/** Verifica o status atual de um pedido transacional no PagBank. */
+export const checkPaymentStatus = onCall(
+  { timeoutSeconds: 30, memory: '256MiB', secrets: [PAGBANK_TOKEN_SECRET] },
+  async (request) => {
+    const paymentLogger = logger.child({
+      action: 'checkPaymentStatus',
+      requestId: generateRequestId(),
+      uid: request.auth?.uid,
+    });
+
+    try {
+      if (!request.auth) throw new HttpsError('unauthenticated', 'Usuário deve estar autenticado');
+      const paymentId = request.data?.paymentId;
+      if (!paymentId || typeof paymentId !== 'string') {
+        throw new HttpsError('invalid-argument', 'paymentId é obrigatório');
+      }
+      const token = requirePagBankToken();
+
+      const response = await axios.get(`${PAGBANK_ORDERS_URL}/${encodeURIComponent(paymentId)}`, {
+        headers: { accept: 'application/json', Authorization: getPagBankAuthorizationHeader(token) },
+      });
+      const status = response.data?.charges?.[0]?.status || response.data?.status || 'WAITING';
+      paymentLogger.info('Status do pagamento consultado', { status });
+      return { success: true, paymentId, status };
+    } catch (error: any) {
+      if (error instanceof HttpsError) throw error;
+      if (axios.isAxiosError(error)) {
+        paymentLogger.error('Erro ao consultar status do pagamento', {
+          httpStatus: error.response?.status,
+          errorMessage: error.message,
+        });
+        if (error.response?.status === 404) throw new HttpsError('not-found', 'Pagamento não encontrado');
+      }
+      throw new HttpsError('internal', 'Erro ao consultar status do pagamento');
+    }
+  }
+);
 
 /**
  * Cloud Function para obter os dados de um usuário autenticado.
@@ -406,7 +580,7 @@ export const createPagBankSubscription = onCall(
       // Formatar telefone (remover caracteres especiais)
       const phoneClean = phone.replace(/\D/g, '');
 
-      const pagBankToken = PAGBANK_TOKEN_SECRET.value();
+      const pagBankToken = requirePagBankToken();
       if (!pagBankToken) {
         throw new HttpsError('internal', 'Token PagBank não configurado');
       }
@@ -596,7 +770,7 @@ export const getPagBankPublicKey = onCall(
     pkLogger.info('Obtendo chave pública do PagBank');
     
     try {
-      const pagBankToken = PAGBANK_TOKEN_SECRET.value();
+      const pagBankToken = requirePagBankToken();
       if (!pagBankToken) {
         throw new HttpsError('internal', 'Token PagBank não configurado');
       }
@@ -808,10 +982,10 @@ export const pagBankWebhook = onRequest(
 
       // Valida token do webhook — não logar o token em si
       const token = request.headers['x-webhook-token'];
-      const webhookToken = PAGBANK_WEBHOOK_TOKEN_SECRET.value();
+      const webhookToken = process.env.PAGBANK_WEBHOOK_TOKEN;
       if (!webhookToken) {
         webhookLogger.error('Token de webhook do PagBank não configurado');
-        response.status(500).send('Webhook token not configured');
+        response.status(503).send('Webhook token not configured');
         return;
       }
 
@@ -955,7 +1129,7 @@ export const checkSubscriptionStatus = onCall(
         throw new HttpsError('not-found', 'Empresa sem assinatura');
       }
 
-      const token = PAGBANK_TOKEN_SECRET.value();
+      const token = requirePagBankToken();
       if (!token) {
         throw new HttpsError('internal', 'Token PagBank não configurado');
       }
@@ -1100,7 +1274,7 @@ export const createPagBankPlan = onCall(
         throw new HttpsError('invalid-argument', 'Comprimento do intervalo deve ser maior que zero');
       }
 
-      const pagBankToken = PAGBANK_TOKEN_SECRET.value();
+      const pagBankToken = requirePagBankToken();
       if (!pagBankToken) {
         throw new HttpsError('internal', 'Token PagBank não configurado');
       }
@@ -1307,7 +1481,7 @@ export const cancelPagBankSubscription = onCall(
         throw new HttpsError("invalid-argument", "CompanyID é obrigatório");
       }
 
-      const pagBankToken = PAGBANK_TOKEN_SECRET.value();
+      const pagBankToken = requirePagBankToken();
 
       if (!pagBankToken) {
         throw new HttpsError(
@@ -1366,6 +1540,112 @@ export const cancelPagBankSubscription = onCall(
           error.message || "Erro inesperado ao cancelar assinatura"
         );
       }
+    }
+  }
+);
+
+/**
+ * Webhook de pagamentos transacionais (Orders/Charges) do PagBank.
+ * O request válido é confirmado imediatamente; a atualização do pedido e a
+ * notificação são processadas em seguida para evitar reenvios desnecessários.
+ */
+export const pagBankPaymentWebhook = onRequest(
+  {
+    timeoutSeconds: 60,
+    memory: '256MiB',
+    secrets: [PAGBANK_WEBHOOK_TOKEN_SECRET],
+  },
+  async (request, response) => {
+    const paymentLogger = logger.child({
+      action: 'pagBankPaymentWebhook',
+      requestId: generateRequestId(),
+    });
+
+    if (request.method !== 'POST') {
+      response.status(405).send('Method Not Allowed');
+      return;
+    }
+
+    const receivedToken = request.headers['x-webhook-token'];
+    const expectedToken = process.env.PAGBANK_WEBHOOK_TOKEN;
+    if (!expectedToken) {
+      paymentLogger.error('Token de webhook de pagamento não configurado');
+      response.status(503).send('Webhook token not configured');
+      return;
+    }
+    if (typeof receivedToken !== 'string' || receivedToken !== expectedToken) {
+      paymentLogger.warn('Token de webhook de pagamento inválido ou ausente');
+      response.status(401).send('Unauthorized');
+      return;
+    }
+
+    // ACK imediato: o PagBank não precisa aguardar operações no Firestore/FCM.
+    response.status(200).send('OK');
+
+    try {
+      const body = request.body || {};
+      const charge = Array.isArray(body.charges) ? body.charges[0] : body.charge;
+      const paymentIds = [charge?.id, body.id]
+        .filter((id): id is string => typeof id === 'string' && id.length > 0);
+      const status = String(charge?.status || body.status || '').toUpperCase();
+
+      if (paymentIds.length === 0 || !status) {
+        paymentLogger.warn('Webhook de pagamento sem id ou status');
+        return;
+      }
+
+      paymentLogger.info('Evento de pagamento recebido', { paymentId: paymentIds[0], status });
+
+      let orderQuery = await db.collection('orders')
+        .where('paymentId', '==', paymentIds[0])
+        .limit(1).get();
+      let paymentId = paymentIds[0];
+      if (orderQuery.empty && paymentIds[1]) {
+        paymentId = paymentIds[1];
+        orderQuery = await db.collection('orders')
+          .where('paymentId', '==', paymentId)
+          .limit(1).get();
+      }
+
+      if (orderQuery.empty) {
+        paymentLogger.warn('Pedido não encontrado para pagamento', { paymentId, status });
+        return;
+      }
+
+      const orderDoc = orderQuery.docs[0];
+      if (status === 'PAID') {
+        await orderDoc.ref.update({
+          paymentStatus: 'paid',
+          status: 0,
+          paidAt: Timestamp.now(),
+        });
+
+        const companyId = orderDoc.data().companyID;
+        if (companyId) {
+          const admins = await db.collection('admins')
+            .where('companyID', '==', companyId)
+            .get();
+          const adminTokens = (await Promise.all(
+            admins.docs.map((admin) => getDeviceTokens(admin.id))
+          )).flat();
+          await sendPushFCM(
+            adminTokens,
+            'Pagamento aprovado',
+            `Pagamento aprovado. Pedido: ${orderDoc.id}`,
+            '',
+            'order'
+          );
+        }
+      } else if (status === 'DECLINED' || status === 'CANCELED') {
+        await orderDoc.ref.update({ paymentStatus: 'failed' });
+      }
+
+      paymentLogger.info('Pedido atualizado para evento de pagamento', { paymentId, status });
+    } catch (error: any) {
+      paymentLogger.error('Erro ao processar evento de pagamento', {
+        errorName: error?.name,
+        errorMessage: error?.message,
+      });
     }
   }
 );

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:fouryoupet/models/cart/cart_manager.dart';
 import 'package:fouryoupet/models/product/product.dart';
-import 'package:fouryoupet/services/ceilo_payment.dart';
+import 'package:fouryoupet/services/pagbank_payment_service.dart';
 import 'package:fouryoupet/models/loyalty/loyalty_manager.dart';
 import 'package:fouryoupet/models/loyalty/loyalty.dart';
 
@@ -22,7 +22,7 @@ class CheckoutManager extends ChangeNotifier {
 
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-  final CieloPayment cieloPayment = CieloPayment();
+  final PagBankPaymentService pagBankPayment = PagBankPaymentService();
 
   // ignore: use_setters_to_change_properties
   void updateCart(CartManager cartManager) {
@@ -35,76 +35,89 @@ class CheckoutManager extends ChangeNotifier {
     Function? onPayFail,
     CouponCodeManager? couponManager,
     LoyaltyManager? loyaltyManager,
+    String paymentMethod = 'PIX',
+    String? encryptedCard,
+    String? securityCode,
   }) async {
     loading = true;
-
-    final orderId = await _getOrderId();
-
     try {
-      await _decrementStock();
-    } catch (e) {
-      //cieloPayment.cancel(payId);
-      onStockFail!(e);
-      loading = false;
-      return;
-    }
-
-    try {
+      if (cartManager.items.isEmpty || !cartManager.isCartValid) {
+        throw Exception('Carrinho vazio ou com produto sem estoque');
+      }
       await cartManager.areacoberta();
+      final orderId = (await _getOrderId()).toString();
+      final customer = <String, dynamic>{
+        'name': cartManager.user?.name ?? '',
+        'email': cartManager.user?.email ?? '',
+        'cpf': cartManager.user?.cpf ?? '',
+        'phone': cartManager.user?.celular ?? '',
+      };
+      final PaymentResult payment = paymentMethod == 'PIX'
+          ? await pagBankPayment.createPix(
+              amount: (cartManager.totalPrice * 100).round(),
+              customer: customer,
+              orderId: orderId,
+            )
+          : await pagBankPayment.chargeCard(
+              amount: (cartManager.totalPrice * 100).round(),
+              customer: customer,
+              encryptedCard: encryptedCard ?? '',
+              securityCode: securityCode ?? '',
+              orderId: orderId,
+            );
+
+      if (!payment.success || payment.paymentId == null) {
+        throw Exception(payment.error ?? 'Pagamento não aprovado');
+      }
+
+      final isPix = paymentMethod == 'PIX';
+      if (!isPix) await _decrementStock();
+
+      final order = od.Order.fromCartManager(cartManager)
+        ..orderId = orderId
+        ..payId = payment.paymentId
+        ..paymentId = payment.paymentId
+        ..paymentMethod = paymentMethod
+        ..paymentStatus = isPix ? 'pending' : 'paid'
+        ..pixQrCode = payment.qrcode
+        ..pixCopyPaste = payment.copyPaste
+        ..status = od.Status.approval
+        ..discount = couponManager?.getDiscountAmount(
+            cartManager.totalPrice.toDouble() -
+                cartManager.deliveryPrice!.toDouble())
+        ..couponCode = couponManager?.cupomcode;
+      await order.save();
+
+      if (!isPix) {
+        await _completePaidOrder(order, couponManager, loyaltyManager);
+        cartManager.clear();
+      }
+      onSuccess!(order, payment);
     } catch (e) {
-      onPayFail!(e);
+      onPayFail?.call(e);
+    } finally {
       loading = false;
-      return;
     }
+  }
 
-    //try {
-    //   await cieloPayment.capture(payId);
-    // } catch (e){
-    //   onPayFail(e);
-    //   loading = false;
-    //   return;
-    // }
-
-    // Register coupon usage if a coupon was applied
-    if (couponManager != null && couponManager.hasCouponApplied) {
-      await couponManager.markCouponAsUsed(
-        cartManager.user!.id ?? '',
-        orderId.toString(),
-      );
+  Future<void> _completePaidOrder(od.Order order, CouponCodeManager? coupon,
+      LoyaltyManager? loyalty) async {
+    if (coupon != null && coupon.hasCouponApplied) {
+      await coupon.markCouponAsUsed(cartManager.user!.id ?? '', order.orderId!);
     }
-
-    final order = od.Order.fromCartManager(cartManager);
-    order.orderId = orderId.toString();
-    order.discount = couponManager?.getDiscountAmount(order.price!.toDouble() -
-        order.frete!.toDouble()); //cartManager.discount?.toDouble();
-    order.couponCode = couponManager?.cupomcode; //cartManager.couponCode;
-
-    //order.payId = payId;
-
-    await order.save();
-
-    // Adicionar pontos de fidelidade após pedido ser salvo
-    if (loyaltyManager != null && cartManager.user != null) {
+    if (loyalty != null && cartManager.user != null) {
       await _addLoyaltyPoints(
-        loyaltyManager: loyaltyManager,
-        orderValue: order.price?.toDouble() ?? 0.0,
-        orderId: orderId.toString(),
+        loyaltyManager: loyalty,
+        orderValue: order.price?.toDouble() ?? 0,
+        orderId: order.orderId!,
         userId: cartManager.user!.id!,
       );
-
-      // Processar indicação se for primeira compra
       await _processReferralIfFirstPurchase(
-        loyaltyManager: loyaltyManager,
+        loyaltyManager: loyalty,
         userId: cartManager.user!.id!,
-        orderId: orderId.toString(),
+        orderId: order.orderId!,
       );
     }
-
-    cartManager.clear();
-
-    onSuccess!(order);
-
-    loading = false;
   }
 
   /// Adiciona pontos de fidelidade baseado no valor do pedido
