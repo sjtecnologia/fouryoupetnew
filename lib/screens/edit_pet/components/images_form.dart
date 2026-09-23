@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:fouryoupet/models/pet/pet.dart';
 import 'package:fouryoupet/screens/edit_pet/components/image_source_sheet.dart';
 import 'package:provider/provider.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 class ImagesForm extends StatelessWidget {
   const ImagesForm({Key? key}) : super(key: key);
@@ -87,30 +88,9 @@ class Carousel extends StatelessWidget {
               fit: StackFit.expand,
               children: <Widget>[
                 if (image is String)
-                  Image.network(
-                    image,
+                  AppNetworkImage(
+                    imageUrl: image,
                     fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Center(
-                        child: CircularProgressIndicator(
-                          value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
-                              : null,
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey[300],
-                        child: const Icon(
-                          Icons.error,
-                          color: Colors.red,
-                          size: 40,
-                        ),
-                      );
-                    },
                   )
                 else
                   Image.file(

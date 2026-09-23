@@ -30,8 +30,6 @@ class PagBankService {
     required String security_code,
   }) async {
     try {
-      debugPrint(
-          'Criando assinatura com os seguintes dados: $encryptedCard, $cardHolder, $cpf, $phone, $address, $companyId, $security_code');
       final HttpsCallable callable =
           _functions.httpsCallable('createPagBankSubscription');
       final result = await callable.call({
@@ -175,12 +173,12 @@ class _PagBankWebViewState extends State<_PagBankWebView> {
           <script>
             try {
               const card = PagSeguro.encryptCard({
-                publicKey: "${widget.publicKey}",
-                holder: "${widget.cardHolder}",
-                number: "${widget.cardNumber}",
-                expMonth: "${widget.expiryMonth}",
-                expYear: "${widget.expiryYear}",
-                securityCode: "${widget.cvv}"
+                publicKey: "${_escapeJs(widget.publicKey)}",
+                holder: "${_escapeJs(widget.cardHolder)}",
+                number: "${_escapeJs(widget.cardNumber)}",
+                expMonth: "${_escapeJs(widget.expiryMonth)}",
+                expYear: "${_escapeJs(widget.expiryYear)}",
+                securityCode: "${_escapeJs(widget.cvv)}"
               });
               
               if (card.hasErrors) {
@@ -200,5 +198,16 @@ class _PagBankWebViewState extends State<_PagBankWebView> {
   @override
   Widget build(BuildContext context) {
     return WebViewWidget(controller: controller);
+  }
+
+  /// Escapar caracteres especiais em strings para uso seguro em JavaScript
+  String _escapeJs(String str) {
+    return str
+        .replaceAll('\\', '\\\\')
+        .replaceAll('"', '\\"')
+        .replaceAll("'", "\\'")
+        .replaceAll('\n', '\\n')
+        .replaceAll('\r', '\\r')
+        .replaceAll('\t', '\\t');
   }
 }

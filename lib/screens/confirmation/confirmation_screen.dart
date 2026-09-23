@@ -3,6 +3,8 @@ import 'package:fouryoupet/models/order/order.dart';
 import 'package:fouryoupet/common/order/order_product_tile.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'
+    show FirebaseFirestore, DocumentSnapshot;
 
 import '../../models/page_manager.dart';
 
@@ -136,6 +138,33 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                               color: Colors.black,
                               fontSize: 14,
                             ),
+                          ),
+                        ],
+                        if (widget.order?.paymentStatus == 'pending') ...[
+                          const SizedBox(height: 12),
+                          const Text('Aguardando confirmação do PIX...'),
+                          if (widget.order?.pixQrCode != null)
+                            SelectableText(widget.order!.pixQrCode!),
+                          if (widget.order?.pixCopyPaste != null)
+                            SelectableText(widget.order!.pixCopyPaste!),
+                          StreamBuilder<DocumentSnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('orders')
+                                .doc(widget.order!.orderId)
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              final data = snapshot.data?.data()
+                                  as Map<String, dynamic>?;
+                              if (data?['paymentStatus'] == 'paid') {
+                                return const Text('Pagamento confirmado!',
+                                    style: TextStyle(color: Colors.green));
+                              }
+                              if (data?['paymentStatus'] == 'failed') {
+                                return const Text('Pagamento não aprovado.',
+                                    style: TextStyle(color: Colors.red));
+                              }
+                              return const SizedBox.shrink();
+                            },
                           ),
                         ],
                         LinearProgressIndicator(

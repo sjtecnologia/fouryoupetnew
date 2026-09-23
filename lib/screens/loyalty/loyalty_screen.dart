@@ -9,6 +9,7 @@ import '../../models/loyalty/loyalty.dart';
 import '../../models/loyalty/loyalty_manager.dart';
 import '../../models/user/user_manager.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 /// Tela principal do programa de fidelidade
 class LoyaltyScreen extends StatefulWidget {
@@ -478,22 +479,12 @@ class _LoyaltyScreenState extends State<LoyaltyScreen>
                 if (reward.image != null)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      reward.image!,
+                    child: AppNetworkImage(
+                      imageUrl: reward.image!,
                       width: 60,
                       height: 60,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          width: 60,
-                          height: 60,
-                          color: AppColors.surfaceVariant,
-                          child: const Icon(
-                            Icons.card_giftcard,
-                            color: AppColors.onSurfaceVariant,
-                          ),
-                        );
-                      },
+                      placeholderColor: AppColors.surfaceVariant,
                     ),
                   )
                 else
@@ -616,7 +607,7 @@ class _LoyaltyScreenState extends State<LoyaltyScreen>
   }
 
   Widget _buildErrorState(String error) {
-    print(error);
+    debugPrint(error);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -785,14 +776,14 @@ class _LoyaltyScreenState extends State<LoyaltyScreen>
             final code = loyaltyManager.generateReferralCode(userapp.id!);
             userapp.referralCode = code;
             await userapp.saveData();
-            print('✅ Código de indicação gerado: $code');
+            debugPrint('✅ Código de indicação gerado: $code');
           });
         }
 
         final referralCode = userapp?.referralCode ?? '';
 
-        print('🔍 ReferralTab - userapp: ${userapp?.id}');
-        print('🔍 ReferralTab - referralCode: "$referralCode"');
+        debugPrint('🔍 ReferralTab - userapp: ${userapp?.id}');
+        debugPrint('🔍 ReferralTab - referralCode: "$referralCode"');
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),

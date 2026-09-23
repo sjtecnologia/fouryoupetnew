@@ -2,6 +2,7 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 //import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class MapsService {
@@ -26,9 +27,9 @@ class MapsService {
         'apiKey': apiKey,
       });
 
-      print('Google Maps configurado com sucesso!');
+      debugPrint('Google Maps configurado com sucesso!');
     } catch (e) {
-      print('Erro ao configurar Google Maps: $e');
+      debugPrint('Erro ao configurar Google Maps: $e');
     }
   }
 }

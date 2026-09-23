@@ -9,6 +9,7 @@ import 'package:fouryoupet/helpers/styles/text_styles.dart';
 import 'package:fouryoupet/models/company/company.dart';
 
 import 'image_source_sheet.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 class DocsForm extends StatelessWidget {
   const DocsForm(this.company);
@@ -45,10 +46,7 @@ class DocsForm extends StatelessWidget {
                     fit: StackFit.expand,
                     children: <Widget>[
                       if (documents is String)
-                        Image.network(
-                          documents,
-                          fit: BoxFit.contain,
-                        )
+                        AppNetworkImage(imageUrl: documents, fit: BoxFit.contain)
                       else
                         Image.file(
                           documents as File,

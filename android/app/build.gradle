@@ -31,17 +31,33 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         //minSdkVersion flutter.minSdkVersion//flutter.minSdkVersion
         minSdkVersion flutter.minSdkVersion
-        targetSdk = 35//flutter.targetSdkVersion
-        versionCode = 1513//flutter.versionCode
-        versionName = 1513//flutter.versionName
+        targetSdk = 36
+        versionCode = 1517
+        versionName = 1516//flutter.versionName
     }
 
     signingConfigs {
         release {
-            keyAlias 'upload'
-            keyPassword 'Sj@2005@'
-            storeFile file('/Users/renato/Documents/Developement/fouryoupet/upload-keystore.jks')
-            storePassword 'Sj@2005@'
+            if (project.hasProperty('flutter.keystorePath') &&
+                    project.hasProperty('flutter.keystorePassword') &&
+                    project.hasProperty('flutter.keyPassword') &&
+                    project.hasProperty('flutter.keyAlias')) {
+                keyAlias project.property('flutter.keyAlias')
+                keyPassword project.property('flutter.keyPassword')
+                storeFile file(project.property('flutter.keystorePath'))
+                storePassword project.property('flutter.keystorePassword')
+            } else {
+                // Fallback: Try to load from key.properties
+                def keystoreProperties = new Properties()
+                def keystorePropertiesFile = rootProject.file('key.properties')
+                if (keystorePropertiesFile.exists()) {
+                    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+                    keyAlias keystoreProperties['keyAlias']
+                    keyPassword keystoreProperties['keyPassword']
+                    storeFile file(keystoreProperties['storeFile'])
+                    storePassword keystoreProperties['storePassword']
+                }
+            }
             v1SigningEnabled true
             v2SigningEnabled true
         }

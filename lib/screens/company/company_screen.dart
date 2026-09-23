@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fouryoupet/models/company/company.dart';
 import 'package:fouryoupet/models/user/user_manager.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 class CompanyScreen extends StatelessWidget {
   const CompanyScreen(this.company);
@@ -42,7 +43,7 @@ class CompanyScreen extends StatelessWidget {
           children: <Widget>[
             AspectRatio(
               aspectRatio: 1,
-              child: Image.network(company!.images!.first),
+              child: AppNetworkImage(imageUrl: company!.images!.first, fit: BoxFit.cover),
               // child: Carousel(
               //   images: company!.images!.map((url) {
               //     return NetworkImage(url);

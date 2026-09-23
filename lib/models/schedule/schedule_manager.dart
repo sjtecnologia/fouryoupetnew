@@ -16,9 +16,9 @@ class ScheduleManager extends ChangeNotifier {
       _availableTime = availableTime;
       _availableTime?.save();
 
-      print('Horário disponível salvo com sucesso!');
+      debugPrint('Horário disponível salvo com sucesso!');
     } catch (e, s) {
-      print('Erro ao salvar o horário disponível: $e :- $s');
+      debugPrint('Erro ao salvar o horário disponível: $e :- $s');
     }
   }
 

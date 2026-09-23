@@ -86,15 +86,19 @@ class _BaseScreenState extends State<BaseScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await context.read<NotificationsManager>().stNotific();
       await context.read<NotificationsManager>().stNotificnolido();
-      await context
-          .read<OrdersManager>()
-          .qtdMessage()
-          ?.then((v) => qtdmsg = v ?? 0);
-      if (context.mounted)
-        await context
-            .read<EventProvider>()
-            .qtdMessage()
-            ?.then((e) => qtdmsge = e ?? 0);
+
+      if (!context.mounted) return;
+      final msgs = await context.read<OrdersManager>().qtdMessage() ?? 0;
+
+      if (!context.mounted) return;
+      final msgsE = await context.read<EventProvider>().qtdMessage() ?? 0;
+
+      if (context.mounted) {
+        setState(() {
+          qtdmsg = msgs;
+          qtdmsge = msgsE;
+        });
+      }
     });
 
     configFCM();
@@ -161,11 +165,11 @@ class _BaseScreenState extends State<BaseScreen> {
         sound: true,
       );
       if (kDebugMode) {
-        print('User granted permission: ${settings.authorizationStatus}');
+        debugPrint('User granted permission: ${settings.authorizationStatus}');
       }
     } catch (e, s) {
-      print(e);
-      print(s);
+      debugPrint(e.toString());
+      debugPrint(s.toString());
     }
 
     FirebaseMessaging.onMessage.listen(
@@ -196,16 +200,17 @@ class _BaseScreenState extends State<BaseScreen> {
                   .read<UserManager>()
                   .getToken(od.first.userId.toString());
             } else {
-              tk = await context.read<UserManager>().getToken(context
+              final userId = await context
                       .read<UserManager>()
                       .findUserByCompanyID(od.first.companyID) ??
-                  '');
+                  '';
+              tk = await context.read<UserManager>().getToken(userId);
             }
           } else {
-            tk = await context.read<UserManager>().getToken(context
-                    .read<UserManager>()
-                    .findUserByCompanyID(od.first.companyID) ??
-                '');
+            final userId = await context
+                .read<UserManager>()
+                .findUserByCompanyID(od.first.companyID);
+            tk = await context.read<UserManager>().getToken(userId ?? '');
           }
 
           Navigator.push(
@@ -234,16 +239,18 @@ class _BaseScreenState extends State<BaseScreen> {
                   .read<UserManager>()
                   .getToken(od.first.userID.toString());
             } else {
-              tk = await context.read<UserManager>().getToken(context
+              final userId = await context
                       .read<UserManager>()
                       .findUserByCompanyID(od.first.companyID) ??
-                  '');
+                  '';
+              tk = await context.read<UserManager>().getToken(userId);
             }
           } else {
-            tk = await context.read<UserManager>().getToken(context
+            final userId = await context
                     .read<UserManager>()
                     .findUserByCompanyID(od.first.companyID) ??
-                '');
+                '';
+            tk = await context.read<UserManager>().getToken(userId);
           }
 
           Navigator.push(
@@ -281,16 +288,18 @@ class _BaseScreenState extends State<BaseScreen> {
                 .read<UserManager>()
                 .getToken(od.first.userId.toString());
           } else {
-            tk = await context.read<UserManager>().getToken(context
+            final userId = await context
                     .read<UserManager>()
                     .findUserByCompanyID(od.first.companyID) ??
-                '');
+                '';
+            tk = await context.read<UserManager>().getToken(userId);
           }
         } else {
-          tk = await context.read<UserManager>().getToken(context
+          final userId = await context
                   .read<UserManager>()
                   .findUserByCompanyID(od.first.companyID) ??
-              '');
+              '';
+          tk = await context.read<UserManager>().getToken(userId);
         }
 
         Navigator.push(

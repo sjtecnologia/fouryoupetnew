@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:map_launcher/map_launcher.dart';
-import 'package:fouryoupet/helpers/custom_icon_button.dart';
+import 'package:fouryoupet/common/custom_icon_button.dart';
 import 'package:fouryoupet/models/store/store.dart';
 import 'package:top_snackbar_flutter/custom_snack_bar.dart';
 import 'package:top_snackbar_flutter/top_snack_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 class StoreCard extends StatelessWidget {
   const StoreCard(this.store);
@@ -97,10 +98,7 @@ class StoreCard extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: <Widget>[
-                Image.network(
-                  store.image!,
-                  fit: BoxFit.cover,
-                ),
+                AppNetworkImage(imageUrl: store.image!, fit: BoxFit.cover),
                 Align(
                   alignment: Alignment.topRight,
                   child: Container(

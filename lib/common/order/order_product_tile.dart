@@ -3,6 +3,7 @@ import 'package:fouryoupet/models/cart/cart_product.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/order/order.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 class OrderProductTile extends StatelessWidget {
   const OrderProductTile(this.cartProduct, this.order);
@@ -27,7 +28,7 @@ class OrderProductTile extends StatelessWidget {
             SizedBox(
               height: 60,
               width: 60,
-              child: Image.network(cartProduct.product!.images!.first),
+              child: AppNetworkImage(imageUrl: cartProduct.product!.images!.first),
             ),
             const SizedBox(
               width: 8,

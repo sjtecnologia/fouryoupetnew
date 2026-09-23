@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 // Para debugPrint ou print
 
 // Importe sua classe Pesos e Pet
@@ -12,14 +13,14 @@ Future<void> adicionarPesoPadraoAosPetsExistentes() async {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   try {
-    print(
+    debugPrint(
         'Iniciando a verificação e atualização de pesos para pets existentes...');
 
     // 1. Obtém todos os documentos da coleção 'pet'
     QuerySnapshot petSnapshot = await _firestore.collection('pet').get();
 
     if (petSnapshot.docs.isEmpty) {
-      print(
+      debugPrint(
           'Nenhum registro encontrado na coleção "pet". Nenhuma atualização necessária.');
       return;
     }
@@ -55,10 +56,10 @@ Future<void> adicionarPesoPadraoAosPetsExistentes() async {
         // Atualiza apenas o campo 'pesos' no documento do pet
         batch.update(doc.reference, {'pesos': newPesosList});
         petsAtualizados++;
-        print(
+        debugPrint(
             '  > Pet ID: $petId - Adicionando peso padrão: ${defaultPeso.peso} kg em ${defaultPeso.datapeso}.');
       } else {
-        print(
+        debugPrint(
             '  > Pet ID: $petId - Já possui ${existingPesosData.length} registros de peso. Nenhuma alteração.');
       }
     }
@@ -66,14 +67,14 @@ Future<void> adicionarPesoPadraoAosPetsExistentes() async {
     // 6. Executa todas as operações do batch
     if (petsAtualizados > 0) {
       await batch.commit();
-      print('Atualização concluída com sucesso!');
-      print(
+      debugPrint('Atualização concluída com sucesso!');
+      debugPrint(
           '$petsAtualizados registros de pets foram atualizados com um peso padrão.');
     } else {
-      print('Nenhum pet precisou de atualização de peso padrão.');
+      debugPrint('Nenhum pet precisou de atualização de peso padrão.');
     }
   } catch (e) {
-    print('Ocorreu um erro ao adicionar pesos aos pets existentes: $e');
+    debugPrint('Ocorreu um erro ao adicionar pesos aos pets existentes: $e');
   }
 }
 

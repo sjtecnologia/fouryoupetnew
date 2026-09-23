@@ -191,7 +191,7 @@ class CouponCodeManager extends ChangeNotifier {
         'usageCount': FieldValue.increment(1),
       });
     } catch (e) {
-      print('Erro ao marcar cupom como usado: $e');
+      debugPrint('Erro ao marcar cupom como usado: $e');
     }
   }
 

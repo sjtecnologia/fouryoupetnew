@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:fouryoupet/models/accommodation/accommodation.dart';
 import 'package:fouryoupet/models/hotel/hotel.dart';
 
@@ -37,10 +38,15 @@ class AccommodationManager extends ChangeNotifier {
     }
 
     try {
-      final querySnapshot = await firestore
+      Query<Map<String, dynamic>> query = firestore
           .collection('accommodation')
-          .where('companyID', isEqualTo: _companyID)
-          .get();
+          .where('deleted', isEqualTo: false);
+
+      if (_companyID != '0') {
+        query = query.where('companyID', isEqualTo: _companyID);
+      }
+
+      final querySnapshot = await query.get();
 
       accommodations.clear();
       for (var doc in querySnapshot.docs) {
@@ -48,7 +54,7 @@ class AccommodationManager extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      print('Erro ao buscar accommodations: $e');
+      debugPrint('Erro ao buscar accommodations: $e');
     }
   }
 
@@ -118,20 +124,21 @@ class AccommodationManager extends ChangeNotifier {
         // Atualiza o documento com as keywords
         await doc.reference.update({'keywords': keywords});
 
-        print('Documento ${doc.id} atualizado com sucesso!');
+        debugPrint('Documento ${doc.id} atualizado com sucesso!');
       } else {
-        print('Nome do accommodation não encontrado no documento ${doc.id}');
+        debugPrint(
+            'Nome do accommodation não encontrado no documento ${doc.id}');
       }
     }
 
-    print('Atualização concluída!');
+    debugPrint('Atualização concluída!');
   }
 
   String? get categoryid => _categoryid;
 
   set categoryid(String? value) {
     _categoryid = value;
-    // notifyListeners();
+    _listenToHotel();
   }
 
   String get search => _search;
@@ -175,7 +182,12 @@ class AccommodationManager extends ChangeNotifier {
 
   List<Accommodation> get filteredAcccompany {
     final List<Accommodation> filteredAcccompany = [];
-    if (categoryid != '0') {
+    if (companyID == '0' && categoryid == '0') {
+      filteredAcccompany.addAll(accommodations);
+    } else if (companyID == '0' && categoryid != '0') {
+      filteredAcccompany.addAll(
+          accommodations.where((p) => p.categoryid!.contains(categoryid!)));
+    } else if (categoryid != '0') {
       filteredAcccompany.addAll(accommodations.where((p) =>
           p.companyID!.contains(companyID!) &&
           p.categoryid!.contains(categoryid!)));
@@ -192,14 +204,22 @@ class AccommodationManager extends ChangeNotifier {
     return filteredHotel;
   }
 
-  void _listenToHotel() async {
-    _subscription = await firestore
-        .collection('hotel')
-        .where('accid', isEqualTo: accommodation?.id)
-        .where('categoryID', isEqualTo: _categoryid)
-        .where('companyID', isEqualTo: _companyID)
-        .snapshots()
-        .listen((h) {
+  void _listenToHotel() {
+    _subscription?.cancel();
+
+    Query<Map<String, dynamic>> query = firestore.collection('hotel');
+
+    if (accommodation?.id != null && accommodation!.id!.isNotEmpty) {
+      query = query.where('accid', isEqualTo: accommodation!.id);
+    }
+    if (_categoryid != null && _categoryid!.isNotEmpty && _categoryid != '0') {
+      query = query.where('categoryID', isEqualTo: _categoryid);
+    }
+    if (_companyID != null && _companyID!.isNotEmpty && _companyID != '0') {
+      query = query.where('companyID', isEqualTo: _companyID);
+    }
+
+    _subscription = query.snapshots().listen((h) {
       hotel.clear();
       for (final doc in h.docs) {
         hotel.add(Hotel.fromDocument(doc));
@@ -287,9 +307,11 @@ class AccommodationManager extends ChangeNotifier {
 
   void updateAcc(Accommodation accommodation) {
     this.accommodation = accommodation;
+    _listenToHotel();
   }
 
   void setCompanid(String value) {
     companyID = value;
+    _listenToHotel();
   }
 }

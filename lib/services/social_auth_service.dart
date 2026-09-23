@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:local_auth/local_auth.dart';
@@ -32,7 +33,7 @@ class SocialAuthService {
       // Sign in to Firebase with the Google credential
       return await _auth.signInWithCredential(credential);
     } catch (e) {
-      print('Erro ao fazer login com Google: $e');
+      debugPrint('Erro ao fazer login com Google: $e');
       rethrow;
     }
   }
@@ -79,7 +80,7 @@ class SocialAuthService {
         // (às vezes o usuário esconde o email real)
         if (appleEmail != null && appleEmail.isNotEmpty) {
           // O email já é salvo automaticamente pelo Firebase
-          print('Apple email: $appleEmail');
+          debugPrint('Apple email: $appleEmail');
         }
 
         // Recarregar o usuário para pegar os dados atualizados
@@ -88,7 +89,7 @@ class SocialAuthService {
 
       return userCredential;
     } catch (e) {
-      print('Erro ao fazer login com Apple: $e');
+      debugPrint('Erro ao fazer login com Apple: $e');
       rethrow;
     }
   }
@@ -98,7 +99,7 @@ class SocialAuthService {
     try {
       return await _localAuth.canCheckBiometrics;
     } catch (e) {
-      print('Erro ao verificar biometria: $e');
+      debugPrint('Erro ao verificar biometria: $e');
       return false;
     }
   }
@@ -108,7 +109,7 @@ class SocialAuthService {
     try {
       return await _localAuth.getAvailableBiometrics();
     } catch (e) {
-      print('Erro ao obter biometrias disponíveis: $e');
+      debugPrint('Erro ao obter biometrias disponíveis: $e');
       return [];
     }
   }
@@ -127,7 +128,7 @@ class SocialAuthService {
       );
       return isAuthenticated;
     } on PlatformException catch (e) {
-      print('Erro na autenticação biométrica: $e');
+      debugPrint('Erro na autenticação biométrica: $e');
       return false;
     }
   }

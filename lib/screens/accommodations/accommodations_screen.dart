@@ -28,6 +28,16 @@ class AccommodationsScreen extends StatefulWidget {
 
 class _AccommodationsScreenState extends State<AccommodationsScreen> {
   List<Accommodation> filteredAc = [];
+  String? _lastFetchCompanyId;
+
+  void _ensureFetchForCompany(String companyId) {
+    if (companyId.isEmpty || _lastFetchCompanyId == companyId) return;
+    _lastFetchCompanyId = companyId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<AccommodationManager>().fetchAccommodations();
+    });
+  }
 
   @override
   void initState() {
@@ -41,6 +51,15 @@ class _AccommodationsScreenState extends State<AccommodationsScreen> {
       } else {
         accommodationManager.companyID = usersManager.userapp?.companyID ?? '';
       }
+
+      if (widget.accommodationParams != null) {
+        accommodationManager.categoryid =
+            widget.accommodationParams!.categoryid;
+      } else {
+        accommodationManager.categoryid = '0';
+      }
+
+      _ensureFetchForCompany(accommodationManager.companyID ?? '');
 
       accommodationManager.fetchAccommodations();
     });
@@ -148,19 +167,20 @@ class _AccommodationsScreenState extends State<AccommodationsScreen> {
         ),
         child: Consumer2<AccommodationManager, UserManager>(
             builder: (_, accommodationManager, usersManager, __) {
-          if (widget.accommodationParams != null)
-            accommodationManager.categoryid =
-                widget.accommodationParams!.categoryid;
-          else
-            accommodationManager.categoryid = '0';
-          if (widget.accommodationParams != null)
-            accommodationManager.companyID =
-                widget.accommodationParams!.companyid;
-          else
-            accommodationManager.companyID =
-                usersManager.userapp?.companyID ?? '';
+          final targetCategory = widget.accommodationParams?.categoryid ?? '0';
+          final targetCompany = widget.accommodationParams?.companyid ??
+              (usersManager.userapp?.companyID ?? '');
 
-          final filteredAcc = accommodationManager.filteredAcccompany;
+          if (accommodationManager.categoryid != targetCategory) {
+            accommodationManager.categoryid = targetCategory;
+          }
+          if (accommodationManager.companyID != targetCompany) {
+            accommodationManager.companyID = targetCompany;
+          }
+
+          _ensureFetchForCompany(targetCompany);
+
+          final filteredAcc = accommodationManager.filteredAccs;
 
           if (filteredAcc.isNotEmpty)
             return ListView.builder(

@@ -55,21 +55,23 @@ class _AddEvState extends State<AddEv> {
   TextEditingController dateController = TextEditingController();
   final TextEditingController _couponController = TextEditingController();
   bool _showCouponField = false;
-  // Adicione esta flag para controlar o estado de "aplicando cupom"
   bool _isApplyingCoupon = false;
+
   @override
   void initState() {
+    super.initState();
     _couponController.clear();
-    context.read<CouponCodeManager>().removeCoupon();
-    context.read<ServiceManager>().updateService(widget.service as Service);
-    tm = context.read<ServiceManager>().ghfree;
-
+    final serviceManager = context.read<ServiceManager>();
+    serviceManager.setCompanid(widget.service!.companyID!);
+    serviceManager.updateDataEvent(DateTime.now());
+    serviceManager.updateService(widget.service as Service);
     cp = context
         .read<CompanyManager>()
         .findCompanyByID(widget.service!.companyID)!
         .daysoff!;
-
-    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<CouponCodeManager>().removeCoupon();
+    });
   }
 
   final selectedIndexNotifier = ValueNotifier<int?>(null);
@@ -86,12 +88,14 @@ class _AddEvState extends State<AddEv> {
   @override
   Widget build(BuildContext context) {
     final couponManager = context.watch<CouponCodeManager>();
-    
-    
+    final serviceManager = context.watch<ServiceManager>();
+    tm = serviceManager.ghfree;
 
-    final discountAmount = couponManager.getDiscountAmount((widget.service!.basePrice!.toDouble())
+    final discountAmount = couponManager.getDiscountAmount((widget
+            .service!.basePrice!
+            .toDouble())
         .toDouble()); // O desconto deve ser calculado sobre o total ou subtotal? Ajustei para (subtotal + entrega)
-    
+
     var som;
     var somios;
     switch (widget.service!.categoryid) {
@@ -117,332 +121,503 @@ class _AddEvState extends State<AddEv> {
     }
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        elevation: 0,
         centerTitle: true,
-        title: Text('Agendamentos', style: TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
+        foregroundColor: Colors.white,
+        title:
+            const Text('Agendamentos', style: TextStyle(color: Colors.white)),
         leading: IconButton(
-          icon: Icon(
-            Icons.clear,
-            color: Colors.white,
-          ),
+          icon: const Icon(Icons.clear, color: Colors.white),
           onPressed: () {
             Navigator.pop(context);
           },
         ),
-        actions: [],
+        actions: const [],
       ),
-      body: FormBuilder(
-        key: _formKey,
-        // SingleChildScrollView EXTERNO para rolar o FORMULÁRIO INTEIRO
-        child: SingleChildScrollView(
-          child: Column(
-            // MODIFICADO: mainAxisSize.min para que a Column ocupe apenas o espaço necessário
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: <Widget>[
-              FormBuilderTextField(
-                name: 'title',
-                style: TextStyle(color: Colors.white),
-                initialValue: widget.event?.title ?? widget.service!.name,
-                decoration: InputDecoration(
-                  fillColor: Colors.white,
-                  hintText: 'Inserir Título',
-                  hintStyle: TextStyle(color: Colors.white),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.only(left: 48.0),
+      bottomNavigationBar: tm.length > 0
+          ? Consumer<EventProvider>(
+              builder: (_, eventManager, __) => Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color.fromARGB(255, 255, 111, 0),
+                      Color.fromARGB(255, 255, 161, 0),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
                 ),
-              ),
-              Divider(),
-              FormBuilderTextField(
-                name: 'description',
-                style: TextStyle(color: Colors.white),
-                initialValue: widget.event?.description ?? '',
-                maxLines: 5,
-                decoration: InputDecoration(
-                  hintStyle: TextStyle(color: Colors.white),
-                  hintText: 'Inserir Observação',
-                  border: InputBorder.none,
-                  prefixIcon: Icon(
-                    Icons.short_text,
-                    color: Colors.white,
+                padding: EdgeInsets.fromLTRB(
+                    16, 12, 16, MediaQuery.of(context).padding.bottom + 16),
+                child: SizedBox(
+                  height: 52,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromARGB(255, 200, 80, 0),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => _saveEvent(eventManager),
+                    child: const Text(
+                      'SALVAR AGENDAMENTO',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ),
-              Divider(),
-              FormBuilderDateTimePicker(
-                firstDate: DateTime.now(),
-                initialDate: DateTime.now(),
-                selectableDayPredicate: (DateTime val) {
-                  List<int> daysoff = [];
-                  String day;
-                  for (int i = 0; i < cp.length; i++) {
-                    if (cp[i].length >= 2) {
-                      day = cp[i].substring(0, 2);
-                      day = day.trim();
-                    } else {
-                      day = cp[i].substring(0, 1);
-                      day = day.trim();
-                    }
-
-                    if (day.isNotEmpty) daysoff.add(int.parse(day));
-                  }
-                  if (daysoff.contains(val.weekday)) {
-                    return false;
-                  } else {
-                    return true;
-                  }
-                },
-                name: 'event_date',
-                style: TextStyle(color: Colors.white),
-                controller: dateController,
-                initialValue: (DateTime(
-                    DateTime.now().year,
-                    DateTime.now().month,
-                    DateTime.now().day,
-                    tm.length > 0 ? int.parse(tm[0].substring(0, 2)) : 0,
-                    tm.length > 0 ? int.parse(tm[0].substring(3)) : 0,
-                    0)),
-                fieldHintText: 'Inserir Data',
-                locale: Locale('pt', 'BR'),
-                inputType: InputType.date,
-                format: DateFormat('dd/MM/yyyy HH:mm'),
-                decoration: InputDecoration(
-                  border: InputBorder.none,
-                  prefixIcon: Icon(
-                    Icons.calendar_today_sharp,
-                    color: Colors.white,
-                  ),
-                ),
-                onChanged: (dtpar) {
-                  context.read<ServiceManager>().updateDataEvent(dtpar);
-                  context.read<ServiceManager>().updateService(widget.service!);
-                  tm = context.read<ServiceManager>().ghfree;
-
-                  setState(() {});
-                  //dtNow = dtpar;
-                },
-              ),
-              Divider(),
-              // Este é o campo que dispara o problema
-              //CouponField(cartTotal: widget.service!.basePrice!.toDouble()),
-              _buildCouponSection(
-                  context.read<CouponCodeManager>(),
-                  widget.service!.basePrice!.toDouble()),
-              // Desconto (se aplicado)
-            if (couponManager.hasCouponApplied) ...[
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  Text(
-                    'Desconto (${couponManager.appliedCoupon!.code})',
-                    style: const TextStyle(color: Colors.green),
-                  ),
-                  Text(
-                    '- R\$ ${discountAmount.toStringAsFixed(2)}',
-                    style: const TextStyle(color: Colors.green),
-                  ),
-                ],
-              ),
+            )
+          : null,
+      body: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: double.infinity),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color.fromARGB(255, 255, 111, 0),
+              Color.fromARGB(255, 255, 161, 0),
             ],
-              Divider(),
-              if (tm.length > 0)
-                Text(
-                  'Horários Disponíveis',
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold),
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: FormBuilder(
+          key: _formKey,
+          // SingleChildScrollView EXTERNO para rolar o FORMULÁRIO INTEIRO
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + kToolbarHeight,
+            ),
+            child: Column(
+              // MODIFICADO: mainAxisSize.min para que a Column ocupe apenas o espaço necessário
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: <Widget>[
+                FormBuilderTextField(
+                  name: 'title',
+                  style: const TextStyle(color: Colors.white),
+                  initialValue: widget.event?.title ?? widget.service!.name,
+                  decoration: const InputDecoration(
+                    filled: false,
+                    hintText: 'Inserir Título',
+                    hintStyle: TextStyle(color: Colors.white70),
+                    border: InputBorder.none,
+                    //prefixIcon: Icon(Icons.title, color: Colors.white),
+                    contentPadding: EdgeInsets.only(left: 16.0),
+                  ),
                 ),
-              if (tm.length <= 0)
-                Text(
-                  'Sem Horários Disponíveis para este dia!',
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold),
+                Divider(),
+                FormBuilderTextField(
+                  name: 'description',
+                  style: TextStyle(color: Colors.white),
+                  initialValue: widget.event?.description ?? '',
+                  maxLines: 5,
+                  decoration: InputDecoration(
+                    filled: false,
+                    hintStyle: const TextStyle(color: Colors.white70),
+                    hintText: 'Inserir Observação',
+                    border: InputBorder.none,
+                    prefixIcon: const Icon(
+                      Icons.short_text,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
-              Padding(padding: EdgeInsets.all(8)),
-              if (tm.length > 0)
-                // REMOVIDO: O SingleChildScrollView interno.
-                // A rolagem será tratada pelo SingleChildScrollView externo.
+                Divider(),
                 ValueListenableBuilder<int?>(
                   valueListenable: selectedIndexNotifier,
-                  builder: (_, selectedIndex, __) {
-                    if (selectedIndex == null) selectedIndex = 1;
-                    return Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        for (int i = 1; i <= tm.length; i++)
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Container(
-                              height: 30, // Altura definida para cada botão
-                              width: MediaQuery.of(context).size.width,
-                              child: ButtonHoursFree(
-                                text: '${tm[i - 1]} h',
-                                isFavorite: selectedIndex == i,
-                                onPressed: () {
-                                  int h1 =
-                                      int.parse(tm[i - 1].substring(0, 2));
-                                  int m1 = int.parse(tm[i - 1].substring(3));
-                                  DateTime tst = _formKey
-                                      .currentState?.fields.values.last.value;
-                                  tst = DateTime(tst.year, tst.month, tst.day,
-                                      h1, m1, 0);
-                                  _formKey.currentState?.fields.values
-                                      .elementAt(2)
-                                      .didChange(tst);
-                                  selectedIndex == i
-                                      ? selectedIndexNotifier.value = null
-                                      : selectedIndexNotifier.value = i;
-                                },
+                  builder: (_, selectedIndex, __) => FormBuilderDateTimePicker(
+                    enabled: selectedIndex == null,
+                    firstDate: DateTime.now(),
+                    initialDate: DateTime.now(),
+                    selectableDayPredicate: (DateTime val) {
+                      List<int> daysoff = [];
+                      String day;
+                      for (int i = 0; i < cp.length; i++) {
+                        if (cp[i].length >= 2) {
+                          day = cp[i].substring(0, 2);
+                          day = day.trim();
+                        } else {
+                          day = cp[i].substring(0, 1);
+                          day = day.trim();
+                        }
+
+                        if (day.isNotEmpty) daysoff.add(int.parse(day));
+                      }
+                      if (daysoff.contains(val.weekday)) {
+                        return false;
+                      } else {
+                        return true;
+                      }
+                    },
+                    name: 'event_date',
+                    style: TextStyle(color: Colors.white),
+                    controller: dateController,
+                    initialValue: (DateTime(
+                        DateTime.now().year,
+                        DateTime.now().month,
+                        DateTime.now().day,
+                        tm.length > 0 ? int.parse(tm[0].substring(0, 2)) : 0,
+                        tm.length > 0 ? int.parse(tm[0].substring(3)) : 0,
+                        0)),
+                    fieldHintText: 'Inserir Data',
+                    locale: Locale('pt', 'BR'),
+                    inputType: InputType.date,
+                    format: DateFormat('dd/MM/yyyy HH:mm'),
+                    decoration: InputDecoration(
+                      filled: false,
+                      border: InputBorder.none,
+                      hintStyle: const TextStyle(color: Colors.white70),
+                      prefixIcon: const Icon(
+                        Icons.calendar_today_sharp,
+                        color: Colors.white,
+                      ),
+                    ),
+                    onChanged: (dtpar) {
+                      final sm = context.read<ServiceManager>();
+                      sm.setCompanid(widget.service!.companyID!);
+                      sm.updateDataEvent(dtpar);
+                      sm.updateService(widget.service!);
+                      setState(() {});
+                    },
+                  ),
+                ),
+                Divider(),
+                // Este é o campo que dispara o problema
+                //CouponField(cartTotal: widget.service!.basePrice!.toDouble()),
+                _buildCouponSection(context.read<CouponCodeManager>(),
+                    widget.service!.basePrice!.toDouble()),
+                // Desconto (se aplicado)
+                if (couponManager.hasCouponApplied) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      Text(
+                        'Desconto (${couponManager.appliedCoupon!.code})',
+                        style: const TextStyle(color: Colors.green),
+                      ),
+                      Text(
+                        '- R\$ ${discountAmount.toStringAsFixed(2)}',
+                        style: const TextStyle(color: Colors.green),
+                      ),
+                    ],
+                  ),
+                ],
+                Divider(),
+                if (tm.length > 0)
+                  Text(
+                    'Horários Disponíveis',
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                if (tm.length <= 0)
+                  Text(
+                    'Sem Horários Disponíveis para este dia!',
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                Padding(padding: EdgeInsets.all(8)),
+                if (tm.length > 0)
+                  // REMOVIDO: O SingleChildScrollView interno.
+                  // A rolagem será tratada pelo SingleChildScrollView externo.
+                  ValueListenableBuilder<int?>(
+                    valueListenable: selectedIndexNotifier,
+                    builder: (_, selectedIndex, __) {
+                      if (selectedIndex == null) selectedIndex = 1;
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          for (int i = 1; i <= tm.length; i++)
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: SizedBox(
+                                height: 48,
+                                width: MediaQuery.of(context).size.width,
+                                child: ButtonHoursFree(
+                                  text: '${tm[i - 1]} h',
+                                  isFavorite: selectedIndex == i,
+                                  onPressed: () {
+                                    int h1 =
+                                        int.parse(tm[i - 1].substring(0, 2));
+                                    int m1 = int.parse(tm[i - 1].substring(3));
+                                    DateTime tst = _formKey
+                                        .currentState?.fields.values.last.value;
+                                    tst = DateTime(tst.year, tst.month, tst.day,
+                                        h1, m1, 0);
+                                    _formKey.currentState?.fields.values
+                                        .elementAt(2)
+                                        .didChange(tst);
+                                    selectedIndex == i
+                                        ? selectedIndexNotifier.value = null
+                                        : selectedIndexNotifier.value = i;
+                                  },
+                                ),
                               ),
                             ),
-                          ),
-                        Consumer<EventProvider>(
-                            builder: (_, eventManager, __) {
-                          return Container(
-                            width: MediaQuery.of(context).size.width,
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                  right: 38, left: 38, bottom: 16),
-                              child: Visibility(
-                                visible: tm.length > 0,
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.orangeAccent,
-                                    foregroundColor: Colors.black,
-                                  ),
-                                  onPressed: () async {
-                                    //save event
-                                    bool validated =
-                                        _formKey.currentState!.validate();
-                                    String cpid = '';
-                                    if (widget.event == null) {
-                                      cpid = widget.company!;
-                                    } else {
-                                      cpid = widget.event!.companyID!;
-                                    }
-                                    var testedt = _formKey
-                                        .currentState?.fields.values
-                                        .elementAt(2)
-                                        .value;
-
-                                    if (validated && testedt != null) {
-                                      showTopSnackBar(
-                                        Overlay.of(context),
-                                        CustomSnackBar.success(
-                                          message: "Salvo com sucesso",
-                                        ),
-                                      );
-                                      // ignore: unused_local_variable
-                                      List<AppEvent> vago;
-
-                                      final data = Map<String, dynamic>.from(
-                                          _formKey.currentState!.instantValue);
-
-                                      // var dt = data['event_date'] as DateTime;
-                                      var dt = _formKey
+                          Consumer<EventProvider>(
+                              builder: (_, eventManager, __) {
+                            return Container(
+                              width: MediaQuery.of(context).size.width,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                                child: Visibility(
+                                  visible: false,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                          const Color.fromARGB(255, 200, 80, 0),
+                                      foregroundColor: Colors.white,
+                                      minimumSize:
+                                          const Size(double.infinity, 52),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    onPressed: () async {
+                                      //save event
+                                      bool validated =
+                                          _formKey.currentState!.validate();
+                                      String cpid = '';
+                                      if (widget.event == null) {
+                                        cpid = widget.company!;
+                                      } else {
+                                        cpid = widget.event!.companyID!;
+                                      }
+                                      var testedt = _formKey
                                           .currentState?.fields.values
                                           .elementAt(2)
                                           .value;
 
-                                      var dtf =
-                                          DateTime(dt.year, dt.month, dt.day);
-                                      var tp = widget.service!.type;
-                                      if (widget.event == null) {
-                                        vago = await eventManager.loadAllAppEvent(tp, dtf, cpid);
-                                      } else {
-                                        vago = await eventManager.loadAllAppEvent(tp, dtf, cpid);
-                                      }
+                                      if (validated && testedt != null) {
+                                        showTopSnackBar(
+                                          Overlay.of(context),
+                                          CustomSnackBar.success(
+                                            message: "Salvo com sucesso",
+                                          ),
+                                        );
+                                        // ignore: unused_local_variable
+                                        List<AppEvent> vago;
 
-                                      data['event_date'] = dt;
+                                        final data = Map<String, dynamic>.from(
+                                            _formKey
+                                                .currentState!.instantValue);
 
-                                      if (widget.event == null) {
-                                        data['userID'] = context
-                                            .read<UserManager>()
-                                            .userapp!
-                                            .id;
-                                        data['companyID'] = widget.company!;
+                                        // var dt = data['event_date'] as DateTime;
+                                        var dt = _formKey
+                                            .currentState?.fields.values
+                                            .elementAt(2)
+                                            .value;
 
-                                        data['categoryID'] =
-                                            widget.service!.categoryid;
+                                        var dtf =
+                                            DateTime(dt.year, dt.month, dt.day);
+                                        var tp = widget.service!.type;
+                                        if (widget.event == null) {
+                                          vago = await eventManager
+                                              .loadAllAppEvent(tp, dtf, cpid);
+                                        } else {
+                                          vago = await eventManager
+                                              .loadAllAppEvent(tp, dtf, cpid);
+                                        }
 
-                                        data['type'] = widget.service!.type;
-                                        data['serviceid'] = widget.service!.id;
-                                        data['price'] = context
-                                            .read<ServiceManager>()
-                                            .findServiceByID(widget.service!.id)
-                                            .basePrice;
-                                        data['discount'] = discountAmount;
-                                        data['couponCode'] = couponManager.hasCouponApplied ? couponManager.appliedCoupon!.code : null;
-                                        data['status'] = 0;
-                                        
-                                        await eventDBS.create(data);
-                                        await eventManager.checkout(
-                                          orderId: null,
-                                          userId: context
+                                        data['event_date'] = dt;
+
+                                        if (widget.event == null) {
+                                          data['userID'] = context
                                               .read<UserManager>()
                                               .userapp!
-                                              .id,
-                                          couponManager: couponManager
-                                              .hasCouponApplied
-                                              ? couponManager
-                                              : null,
+                                              .id;
+                                          data['companyID'] = widget.company!;
+
+                                          data['categoryID'] =
+                                              widget.service!.categoryid;
+
+                                          data['type'] = widget.service!.type;
+                                          data['serviceid'] =
+                                              widget.service!.id;
+                                          data['price'] = context
+                                              .read<ServiceManager>()
+                                              .findServiceByID(
+                                                  widget.service!.id)
+                                              .basePrice;
+                                          data['discount'] = discountAmount;
+                                          data['couponCode'] =
+                                              couponManager.hasCouponApplied
+                                                  ? couponManager
+                                                      .appliedCoupon!.code
+                                                  : null;
+                                          data['status'] = 0;
+
+                                          await eventDBS.create(data);
+                                          await eventManager.checkout(
+                                            orderId: null,
+                                            userId: context
+                                                .read<UserManager>()
+                                                .userapp!
+                                                .id,
+                                            couponManager:
+                                                couponManager.hasCouponApplied
+                                                    ? couponManager
+                                                    : null,
+                                          );
+                                        } else {
+                                          await eventDBS.updateData(
+                                              widget.event!.id!, data);
+                                        }
+
+                                        if (widget.service!.type == false) {
+                                          notificacut(som, somios, dt);
+                                        } else {
+                                          notificavet(som, somios, dt);
+                                        }
+
+                                        sendemail(
+                                            context,
+                                            widget.service!.type!,
+                                            widget.company!,
+                                            som,
+                                            dt);
+                                        Navigator.of(context)
+                                            .pushNamed('/myevents');
+                                      } else {
+                                        showTopSnackBar(
+                                          Overlay.of(context),
+                                          CustomSnackBar.error(
+                                            message:
+                                                "Favor selecionar um horário na lista abaixo",
+                                          ),
                                         );
-                                      } else {
-                                        await eventDBS.updateData(
-                                            widget.event!.id!, data);
                                       }
-
-                                      if (widget.service!.type == false) {
-                                        notificacut(som, somios, dt);
-                                      } else {
-                                        notificavet(som, somios, dt);
-                                      }
-
-                                      sendemail(
-                                          context,
-                                          widget.service!.type!,
-                                          widget.company!,
-                                          som,
-                                          dt);
-                                      Navigator.of(context)
-                                          .pushNamed('/myevents');
-                                    } else {
-                                      showTopSnackBar(
-                                        Overlay.of(context),
-                                        CustomSnackBar.error(
-                                          message:
-                                              "Favor selecionar um horário na lista abaixo",
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  child: Text('Salvar'),
+                                    },
+                                    child: const Text(
+                                      'SALVAR AGENDAMENTO',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        }),
-                      ],
-                    );
-                  },
-                ),
-              if (tm.length <= 0)
-                Container(
-                  child: IconButton(
-                    onPressed: () {},
-                    icon: Icon(
-                      Icons.timer_off,
-                      color: Colors.white,
-                      size: 48,
+                            );
+                          }),
+                        ],
+                      );
+                    },
+                  ),
+                if (tm.length <= 0)
+                  Container(
+                    child: IconButton(
+                      onPressed: () {},
+                      icon: Icon(
+                        Icons.timer_off,
+                        color: Colors.white,
+                        size: 48,
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _saveEvent(EventProvider eventManager) async {
+    final couponManager = context.read<CouponCodeManager>();
+    final discountAmount =
+        couponManager.getDiscountAmount(widget.service!.basePrice!.toDouble());
+
+    String som = 'notification1';
+    String somios = 'notification1.aiff';
+    switch (widget.service!.categoryid) {
+      case '1':
+        som = 'notification3';
+        somios = 'notification3.aiff';
+        break;
+      case '2':
+        som = 'notification1';
+        somios = 'notification1.aiff';
+        break;
+      case '4':
+        som = 'notification2';
+        somios = 'notification2.aiff';
+        break;
+    }
+
+    bool validated = _formKey.currentState!.validate();
+    String cpid = '';
+    if (widget.event == null) {
+      cpid = widget.company!;
+    } else {
+      cpid = widget.event!.companyID!;
+    }
+    final testedt = _formKey.currentState?.fields.values.elementAt(2).value;
+
+    if (validated && testedt != null) {
+      showTopSnackBar(
+        Overlay.of(context),
+        CustomSnackBar.success(message: "Salvo com sucesso"),
+      );
+      // ignore: unused_local_variable
+      List<AppEvent> vago;
+      final data =
+          Map<String, dynamic>.from(_formKey.currentState!.instantValue);
+      final dt = _formKey.currentState?.fields.values.elementAt(2).value;
+      final dtf = DateTime(dt.year, dt.month, dt.day);
+      final tp = widget.service!.type;
+      if (widget.event == null) {
+        vago = await eventManager.loadAllAppEvent(tp, dtf, cpid);
+      } else {
+        vago = await eventManager.loadAllAppEvent(tp, dtf, cpid);
+      }
+      data['event_date'] = dt;
+      if (widget.event == null) {
+        data['userID'] = context.read<UserManager>().userapp!.id;
+        data['companyID'] = widget.company!;
+        data['categoryID'] = widget.service!.categoryid;
+        data['type'] = widget.service!.type;
+        data['serviceid'] = widget.service!.id;
+        data['price'] = context
+            .read<ServiceManager>()
+            .findServiceByID(widget.service!.id)
+            .basePrice;
+        data['discount'] = discountAmount;
+        data['couponCode'] = couponManager.hasCouponApplied
+            ? couponManager.appliedCoupon!.code
+            : null;
+        data['status'] = 0;
+        await eventDBS.create(data);
+        await eventManager.checkout(
+          orderId: null,
+          userId: context.read<UserManager>().userapp!.id,
+          couponManager: couponManager.hasCouponApplied ? couponManager : null,
+        );
+      } else {
+        await eventDBS.updateData(widget.event!.id!, data);
+      }
+      if (widget.service!.type == false) {
+        notificacut(som, somios, dt);
+      } else {
+        notificavet(som, somios, dt);
+      }
+      sendemail(context, widget.service!.type!, widget.company!, som, dt);
+      Navigator.of(context).pushNamed('/myevents');
+    } else {
+      showTopSnackBar(
+        Overlay.of(context),
+        CustomSnackBar.error(
+            message: "Favor selecionar um horário na lista abaixo"),
+      );
+    }
   }
 
   void sendemail(
@@ -523,7 +698,7 @@ class _AddEvState extends State<AddEv> {
               ' às ' +
               datahora.hour.toString() +
               ':' +
-              datahora.minute.toString().padRight(  2, '0');
+              datahora.minute.toString().padRight(2, '0');
     } else {
       notifi.notificationBody =
           'Olá, não esqueça da agendamento veterinário de seu pet ' +
@@ -536,7 +711,7 @@ class _AddEvState extends State<AddEv> {
               ' às ' +
               datahora.hour.toString() +
               ':' +
-              datahora.minute.toString().padRight(  2, '0');
+              datahora.minute.toString().padRight(2, '0');
     }
     notifi.notificationDate = Timestamp.now();
     notifi.notificationTitle = 'Lembrete de Agendamento';
@@ -549,10 +724,10 @@ class _AddEvState extends State<AddEv> {
     String dtmonth;
     String dtday;
     String minutos;
-    if(datahora?.minute.toString().length ==1){
-      minutos = datahora!.minute.toString() +'0' ; 
-    }else{
-      minutos = datahora!.minute.toString() ; 
+    if (datahora?.minute.toString().length == 1) {
+      minutos = datahora!.minute.toString() + '0';
+    } else {
+      minutos = datahora!.minute.toString();
     }
 
     if (datahora.month.toString().length == 1) {
@@ -583,7 +758,7 @@ class _AddEvState extends State<AddEv> {
                 ' às ' +
                 datahora.hour.toString() +
                 ':' +
-                minutos,//datahora.minute.toString().padRight(2, '0'),
+                minutos, //datahora.minute.toString().padRight(2, '0'),
         dateTime: datahora.subtract(const Duration(minutes: 10)),
       );
       saveNotifications(datahora, 1);
@@ -596,10 +771,10 @@ class _AddEvState extends State<AddEv> {
     String dtmonth;
     String dtday;
     String minutos;
-    if(datahora?.minute.toString().length ==1){
-      minutos = datahora!.minute.toString() +'0' ; 
-    }else{
-      minutos = datahora!.minute.toString() ; 
+    if (datahora?.minute.toString().length == 1) {
+      minutos = datahora!.minute.toString() + '0';
+    } else {
+      minutos = datahora!.minute.toString();
     }
 
     if (datahora.month.toString().length == 1) {
@@ -630,7 +805,7 @@ class _AddEvState extends State<AddEv> {
             datahora.hour.toString() +
             ':' +
             minutos,
-            //datahora.minute.toString().padRight(2, '0'),
+        //datahora.minute.toString().padRight(2, '0'),
         dateTime: datahora.subtract(const Duration(minutes: 10)),
       );
       saveNotifications(datahora, 2);
@@ -638,6 +813,7 @@ class _AddEvState extends State<AddEv> {
       log('Erro ao agendar notificação', error: e, stackTrace: s);
     }
   }
+
   Widget _buildCouponSection(
       CouponCodeManager couponManager, double currentTotalForCoupon) {
     return Column(
@@ -649,6 +825,7 @@ class _AddEvState extends State<AddEv> {
                 _showCouponField = true;
               });
             },
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
             icon: const Icon(Icons.local_offer),
             label: const Text('Aplicar cupom de desconto'),
           ),
@@ -659,10 +836,22 @@ class _AddEvState extends State<AddEv> {
               Expanded(
                 child: TextField(
                   controller: _couponController,
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: 'Digite o código do cupom',
-                    border: const OutlineInputBorder(),
+                    hintStyle: const TextStyle(color: Colors.white70),
+                    filled: false,
+                    border: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white70),
+                    ),
+                    enabledBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white70),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white, width: 2),
+                    ),
                     errorText: couponManager.errorMessage,
+                    errorStyle: const TextStyle(color: Colors.white),
                     suffixIcon: IconButton(
                       onPressed: () {
                         setState(() {
@@ -671,7 +860,7 @@ class _AddEvState extends State<AddEv> {
                         });
                         couponManager.clearState();
                       },
-                      icon: const Icon(Icons.close),
+                      icon: const Icon(Icons.close, color: Colors.white70),
                     ),
                   ),
                   textCapitalization: TextCapitalization.characters,
@@ -679,10 +868,13 @@ class _AddEvState extends State<AddEv> {
               ),
               const SizedBox(width: 8),
               ElevatedButton(
-                onPressed: _isApplyingCoupon ||
-                        couponManager.isLoading // Use _isApplyingCoupon
+                onPressed: _isApplyingCoupon || couponManager.isLoading
                     ? null
                     : () => _applyCoupon(couponManager, currentTotalForCoupon),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Color.fromARGB(255, 255, 111, 0),
+                ),
                 child: _isApplyingCoupon || couponManager.isLoading
                     ? const SizedBox(
                         width: 16,
@@ -699,19 +891,19 @@ class _AddEvState extends State<AddEv> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              border: Border.all(color: Colors.green.shade200),
+              color: Colors.white.withOpacity(0.15),
+              border: Border.all(color: Colors.white54),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.green.shade600),
+                const Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Cupom ${couponManager.appliedCoupon!.code} aplicado!',
-                    style: TextStyle(
-                      color: Colors.green.shade700,
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -724,7 +916,7 @@ class _AddEvState extends State<AddEv> {
                       _couponController.clear();
                     });
                   },
-                  icon: Icon(Icons.close, color: Colors.green.shade600),
+                  icon: const Icon(Icons.close, color: Colors.white70),
                 ),
               ],
             ),

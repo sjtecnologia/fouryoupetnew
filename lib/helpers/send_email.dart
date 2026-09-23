@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:fouryoupet/config/api_constants.dart';
 import 'package:http/http.dart' as http;
 
 Future sendEmail({
@@ -7,9 +9,9 @@ Future sendEmail({
   required String subject,
   required String message,
 }) async {
-  final serviceId = 'service_wcl4vac';
-  final templateId = 'template_0yonq5r';
-  final userId = 'LZZAWcGCTw-3r3wdk';
+  final serviceId = EmailJSConfig.serviceId;
+  final templateId = EmailJSConfig.templateId;
+  final userId = EmailJSConfig.publicKey;
 
   final url = Uri.parse('https://api.emailjs.com/api/v1.0/email/send');
   final response = await http.post(
@@ -29,5 +31,5 @@ Future sendEmail({
       },
     }),
   );
-  print(response.body);
+  debugPrint(response.body);
 }

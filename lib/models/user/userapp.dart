@@ -169,7 +169,7 @@ class Userapp {
       provisional: false,
     );
     if (kDebugMode) {
-      print('Notification permission status: ${settings.authorizationStatus}');
+      debugPrint('Notification permission status: ${settings.authorizationStatus}');
     }
   }
 
@@ -182,7 +182,7 @@ class Userapp {
     if (_lastTokenRefresh != null &&
         now.difference(_lastTokenRefresh!) < _tokenRefreshCooldown) {
       if (kDebugMode) {
-        print(
+        debugPrint(
             '⏭️ Token refresh ignorado - cooldown ativo (${now.difference(_lastTokenRefresh!).inSeconds}s desde última chamada)');
       }
       return;
@@ -203,19 +203,19 @@ class Userapp {
           apnsToken = await FirebaseMessaging.instance.getAPNSToken();
           if (apnsToken != null) {
             if (kDebugMode)
-              print('APNs token obtido após ${i + 1} tentativas.');
+              debugPrint('APNs token obtido após ${i + 1} tentativas.');
             break; // APNs token obtido, sai do loop
           }
         } catch (e) {
           if (kDebugMode)
-            print('Erro ao tentar obter APNs token na tentativa ${i + 1}: $e');
+            debugPrint('Erro ao tentar obter APNs token na tentativa ${i + 1}: $e');
         }
         await Future.delayed(
             const Duration(seconds: 2)); // Espera 2 segundos antes de re-tentar
       }
       if (apnsToken == null) {
         if (kDebugMode)
-          print(
+          debugPrint(
               'Falha em obter o APNs token após múltiplas tentativas. O token FCM pode falhar.');
       }
     }

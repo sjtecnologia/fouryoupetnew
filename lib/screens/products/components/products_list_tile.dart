@@ -5,6 +5,7 @@ import 'package:fouryoupet/models/product/product.dart';
 import 'package:fouryoupet/models/user/user_manager.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 class ProductListTile extends StatelessWidget {
   const ProductListTile(this.product, {this.homeclic});
@@ -44,16 +45,8 @@ class ProductListTile extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 8.0),
                         child: AspectRatio(
                           aspectRatio: 1,
-                          child: Image.network(
-                            product.images!.first,
-                            // height: MediaQuery.of(context).size.height * .10,
-                            // width: MediaQuery.of(context).size.width * .10,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Center(
-                                child: CircularProgressIndicator.adaptive(),
-                              );
-                            },
+                          child: AppNetworkImage(
+                            imageUrl: product.images!.first,
                           ),
                         ),
                       ),

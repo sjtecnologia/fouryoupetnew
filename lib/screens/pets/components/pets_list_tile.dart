@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/pet/pet.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 class PetListTile extends StatelessWidget {
   const PetListTile(this.pet, this.userapp);
@@ -53,7 +54,7 @@ class PetListTile extends StatelessWidget {
               children: <Widget>[
                 AspectRatio(
                   aspectRatio: 1,
-                  child: Image.network(pet.images!.first),
+                  child: AppNetworkImage(imageUrl: pet.images!.first),
                 ),
                 const SizedBox(
                   width: 16,

@@ -53,7 +53,7 @@ class AvailableTime extends ChangeNotifier {
         await firestoreRef.update(data);
       }
     } catch (e, s) {
-      print('Erro ao salvar o horário disponível: $e :- $s');
+      debugPrint('Erro ao salvar o horário disponível: $e :- $s');
     }
   }
 
@@ -82,8 +82,8 @@ class AvailableTime extends ChangeNotifier {
 
       isBooked = document.get('isBooked');
     } on Exception catch (e, s) {
-      print(e);
-      print(s);
+      debugPrint(e.toString());
+      debugPrint(s.toString());
       //  print(id);
     }
   }

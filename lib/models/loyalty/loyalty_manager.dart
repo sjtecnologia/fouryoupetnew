@@ -540,11 +540,11 @@ class LoyaltyManager extends ChangeNotifier {
           .clamp(0, double.infinity)
           .toInt();
 
-      print('🔄 Removendo pontos:');
-      print('  - Pontos atuais: ${_loyaltyProgram!.currentPoints}');
-      print('  - Pontos a remover: $points');
-      print('  - Novos pontos: $newPoints');
-      print('  - Tier atual: ${_loyaltyProgram!.currentTier.name}');
+      debugPrint('🔄 Removendo pontos:');
+      debugPrint('  - Pontos atuais: ${_loyaltyProgram!.currentPoints}');
+      debugPrint('  - Pontos a remover: $points');
+      debugPrint('  - Novos pontos: $newPoints');
+      debugPrint('  - Tier atual: ${_loyaltyProgram!.currentTier.name}');
 
       // Atualizar programa de fidelidade (não altera totalPointsEarned, pois ele representa ganhos brutos)
       final updatedProgram = _loyaltyProgram!.copyWith(
@@ -554,7 +554,7 @@ class LoyaltyManager extends ChangeNotifier {
 
       // Recalcular tier com os novos pontos
       final newTier = updatedProgram.calculateTier();
-      print('  - Novo tier calculado: ${newTier.name}');
+      debugPrint('  - Novo tier calculado: ${newTier.name}');
 
       final programWithTier = (newTier != updatedProgram.currentTier)
           ? updatedProgram.copyWith(currentTier: newTier)
@@ -579,15 +579,15 @@ class LoyaltyManager extends ChangeNotifier {
       _loyaltyProgram = programWithTier;
       _transactions.insert(0, transaction);
 
-      print('✅ Pontos removidos e programa atualizado no Firestore');
-      print('   - Pontos finais: ${programWithTier.currentPoints}');
-      print('   - Tier final: ${programWithTier.currentTier.name}');
+      debugPrint('✅ Pontos removidos e programa atualizado no Firestore');
+      debugPrint('   - Pontos finais: ${programWithTier.currentPoints}');
+      debugPrint('   - Tier final: ${programWithTier.currentTier.name}');
 
       notifyListeners();
 
       return true;
     } catch (e) {
-      print('❌ Erro ao remover pontos: $e');
+      debugPrint('❌ Erro ao remover pontos: $e');
       _setError('Erro ao remover pontos: $e');
       return false;
     } finally {
@@ -834,7 +834,7 @@ class LoyaltyManager extends ChangeNotifier {
 
       // Se já completou a primeira compra antes, não dá pontos
       if (hasCompletedFirstPurchase) {
-        print('✅ Usuário já tinha completado primeira compra antes');
+        debugPrint('✅ Usuário já tinha completado primeira compra antes');
         return true;
       }
 
@@ -865,12 +865,12 @@ class LoyaltyManager extends ChangeNotifier {
         },
       );
 
-      print(
+      debugPrint(
           '✅ Indicação processada: $referredBonusPoints pts para indicado, $referrerBonusPoints pts para indicador');
       return true;
     } catch (e) {
       _setError('Erro ao processar indicação: $e');
-      print('❌ Erro ao processar indicação: $e');
+      debugPrint('❌ Erro ao processar indicação: $e');
       return false;
     } finally {
       _setLoading(false);
@@ -965,7 +965,7 @@ class LoyaltyManager extends ChangeNotifier {
 
       return query.docs.first.id; // Retorna ID do usuário que indicou
     } catch (e) {
-      print('Erro ao validar código de indicação: $e');
+      debugPrint('Erro ao validar código de indicação: $e');
       return null;
     }
   }

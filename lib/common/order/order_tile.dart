@@ -6,6 +6,7 @@ import 'package:fouryoupet/models/order/order.dart';
 import 'package:fouryoupet/common/order/order_product_tile.dart';
 
 import 'package:fouryoupet/models/user/user_manager.dart';
+import 'package:fouryoupet/models/user/userapp.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -26,6 +27,7 @@ class OrderTile extends StatefulWidget {
 class _OrderTileState extends State<OrderTile> with TickerProviderStateMixin {
   late AnimationController controller;
   late int qtdms = 0;
+  Userapp? _userorder;
 
   @override
   void initState() {
@@ -40,6 +42,11 @@ class _OrderTileState extends State<OrderTile> with TickerProviderStateMixin {
         .read<OrdersManager>()
         .getqtChats(widget.order.orderId ?? '')
         .then((v) => qtdms = v);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final user =
+          await context.read<UserManager>().findUserByID(widget.order.userId);
+      if (mounted) setState(() => _userorder = user);
+    });
 
     super.initState();
   }
@@ -52,8 +59,6 @@ class _OrderTileState extends State<OrderTile> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final userorder =
-        context.read<UserManager>().findUserByID(widget.order.userId);
     var companyselec =
         context.read<CompanyManager>().findCompanyByID(widget.order.companyID);
     final desconto = widget.order.discount ?? 0.0;
@@ -110,7 +115,7 @@ class _OrderTileState extends State<OrderTile> with TickerProviderStateMixin {
                             return Text(
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              userorder?.name?.toUpperCase() ?? '',
+                              _userorder?.name?.toUpperCase() ?? '',
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: Colors.black45,
@@ -263,18 +268,24 @@ class _OrderTileState extends State<OrderTile> with TickerProviderStateMixin {
                                   .read<UserManager>()
                                   .getToken(widget.order.userId.toString());
                             } else {
-                              tk = await context.read<UserManager>().getToken(
-                                  context
-                                          .read<UserManager>()
-                                          .findUserByCompanyID(
-                                              widget.order.companyID) ??
-                                      '');
+                              final userId = await context
+                                      .read<UserManager>()
+                                      .findUserByCompanyID(
+                                          widget.order.companyID) ??
+                                  '';
+                              tk = await context
+                                  .read<UserManager>()
+                                  .getToken(userId);
                             }
                           } else {
-                            tk = await context.read<UserManager>().getToken(
-                                context.read<UserManager>().findUserByCompanyID(
+                            final userId = await context
+                                    .read<UserManager>()
+                                    .findUserByCompanyID(
                                         widget.order.companyID) ??
-                                    '');
+                                '';
+                            tk = await context
+                                .read<UserManager>()
+                                .getToken(userId);
                           }
 
                           Navigator.push(

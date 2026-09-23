@@ -4,8 +4,8 @@ import 'package:fouryoupet/models/user/user_manager.dart';
 import 'package:fouryoupet/models/user/userapp.dart';
 import 'package:provider/provider.dart';
 import 'package:fouryoupet/common/custom_drawer/custom_drawer.dart';
-import 'package:fouryoupet/helpers/empty_card.dart';
-import 'package:fouryoupet/helpers/login_card.dart';
+import 'package:fouryoupet/common/empty_card.dart';
+import 'package:fouryoupet/common/login_card.dart';
 
 import '../../common/hotel/event_tile.dart';
 

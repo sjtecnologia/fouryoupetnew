@@ -224,8 +224,6 @@ class AppEvent extends ChangeNotifier {
 
   Future<void> cancel() async {
     try {
-      // await CieloPayment().cancel(payId);
-
       status = Status.canceled;
       firestoreRef.update({'status': status!.index});
     } catch (e) {
@@ -236,8 +234,6 @@ class AppEvent extends ChangeNotifier {
 
   Future<void> finaliza() async {
     try {
-      // await CieloPayment().cancel(payId);
-
       status = Status.finalizado;
       firestoreRef.update({'status': status!.index});
     } catch (e) {

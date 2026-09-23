@@ -144,8 +144,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         validator: (pass) {
                           if (pass!.isEmpty) {
                             return 'Campo obrigatório';
-                          } else if (pass.length < 6) {
-                            return 'Senha muito curta';
+                          } else if (pass.length < 8) {
+                            return 'Senha deve ter no mínimo 8 caracteres';
                           }
                           return null;
                         },
@@ -162,8 +162,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         validator: (pass) {
                           if (pass!.isEmpty) {
                             return 'Campo obrigatório';
-                          } else if (pass.length < 6) {
-                            return 'Senha muito curta';
+                          } else if (pass.length < 8) {
+                            return 'Senha deve ter no mínimo 8 caracteres';
                           }
                           return null;
                         },
@@ -293,7 +293,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   message: "Cadastro concluído com sucesso",
                                 ),
                               );
-                              if (userManager.userapp!.address == null) {
+                              final addr = userManager.userapp?.address;
+                              if (addr == null || addr.isEmpty) {
                                 Navigator.of(context).pushNamed('/listadress');
                               } else {
                                 Navigator.of(context).pop();

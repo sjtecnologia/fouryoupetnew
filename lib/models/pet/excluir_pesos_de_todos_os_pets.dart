@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 /// Função para excluir a subcoleção 'pesos' de todos os documentos da coleção 'pet'.
 Future<void> excluirPesosDeTodosOsPets() async {
@@ -6,14 +7,14 @@ Future<void> excluirPesosDeTodosOsPets() async {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   try {
-    print('Iniciando a exclusão da subcoleção "pesos" de todos os pets...');
+    debugPrint('Iniciando a exclusão da subcoleção "pesos" de todos os pets...');
 
     // 1. Acessa a coleção principal 'pet'
     QuerySnapshot petSnapshot = await _firestore.collection('pet').get();
 
     // Verifica se existem documentos na coleção 'pet'
     if (petSnapshot.docs.isEmpty) {
-      print(
+      debugPrint(
           'Nenhum registro encontrado na coleção "pet". Nenhuma exclusão necessária.');
       return;
     }
@@ -32,7 +33,7 @@ Future<void> excluirPesosDeTodosOsPets() async {
 
       // Verifica se existem documentos na subcoleção 'pesos' para este pet
       if (pesosSnapshot.docs.isEmpty) {
-        print(
+        debugPrint(
             '  > Pet ID: ${petDoc.id} - Não há documentos na subcoleção "pesos".');
         continue; // Pula para o próximo pet
       }
@@ -51,15 +52,15 @@ Future<void> excluirPesosDeTodosOsPets() async {
       // 6. Confirma as exclusões para este pet
       await batch.commit();
       totalPesosExcluidos += pesosExcluidosPorPet;
-      print(
+      debugPrint(
           '  > Pet ID: ${petDoc.id} - Excluídos $pesosExcluidosPorPet documentos da subcoleção "pesos".');
     }
 
-    print('Exclusão concluída com sucesso!');
-    print(
+    debugPrint('Exclusão concluída com sucesso!');
+    debugPrint(
         'Total de documentos de peso excluídos em todos os pets: $totalPesosExcluidos.');
   } catch (e) {
-    print('Ocorreu um erro ao excluir pesos dos pets: $e');
+    debugPrint('Ocorreu um erro ao excluir pesos dos pets: $e');
   }
 }
 

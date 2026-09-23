@@ -1,7 +1,7 @@
 import 'package:firebase_helpers/firebase_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
-import 'package:fouryoupet/helpers/loader.dart';
+import 'package:fouryoupet/common/loader.dart';
 import 'package:fouryoupet/models/accommodation/accommodation_manager.dart';
 
 import 'package:fouryoupet/models/hotel/hotel.dart';

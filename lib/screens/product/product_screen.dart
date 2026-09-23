@@ -7,6 +7,7 @@ import 'package:fouryoupet/models/cart/cart_manager.dart';
 import 'package:fouryoupet/models/product/product.dart';
 import 'package:fouryoupet/models/user/user_manager.dart';
 import 'package:fouryoupet/screens/product/components/size_widget.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 class ProductScreen extends StatelessWidget {
   const ProductScreen(this.product);
@@ -72,7 +73,7 @@ class ProductScreen extends StatelessWidget {
                       ),
                   items: product!.images!.map((url) {
                     return Builder(builder: (BuildContext context) {
-                      return Image.network(url);
+                      return AppNetworkImage(imageUrl: url, fit: BoxFit.contain);
                     });
                   }).toList(),
                 )

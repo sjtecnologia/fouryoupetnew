@@ -9,6 +9,7 @@ import 'package:fouryoupet/models/user/user_manager.dart';
 
 import '../../common/empty_card.dart';
 import '../../models/page_manager.dart';
+import 'package:fouryoupet/common/app_network_image.dart';
 
 class CompanyUserScreen extends StatefulWidget {
   const CompanyUserScreen(this.companyid);
@@ -19,16 +20,19 @@ class CompanyUserScreen extends StatefulWidget {
   State<CompanyUserScreen> createState() => _CompanyUserScreenState();
 }
 
-Company? company = Company();
-
 class _CompanyUserScreenState extends State<CompanyUserScreen> {
+  Company? _company;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      company = await context
+      final result = await context
           .read<CompanyManager>()
           .findCompanyByID2(widget.companyid);
+      if (mounted) {
+        setState(() => _company = result);
+      }
     });
   }
 
@@ -45,13 +49,13 @@ class _CompanyUserScreenState extends State<CompanyUserScreen> {
         actions: <Widget>[
           Consumer2<UserManager, CompanyManager>(
             builder: (_, userManager, companyManager, __) {
-              companyManager.company = company;
+              companyManager.company = _company;
               if (userManager.adminEnabled) {
                 return IconButton(
                   icon: const Icon(Icons.edit),
                   onPressed: () {
                     Navigator.of(context)
-                        .pushNamed('/editcompany', arguments: company);
+                        .pushNamed('/editcompany', arguments: _company);
                   },
                 );
               } else {
@@ -59,7 +63,7 @@ class _CompanyUserScreenState extends State<CompanyUserScreen> {
                   icon: const Icon(Icons.add_business),
                   onPressed: () {
                     Navigator.of(context)
-                        .pushNamed('/editcompany', arguments: company);
+                        .pushNamed('/editcompany', arguments: _company);
                   },
                 );
               }
@@ -88,7 +92,7 @@ class _CompanyUserScreenState extends State<CompanyUserScreen> {
               children: <Widget>[
                 AspectRatio(
                   aspectRatio: 1,
-                  child: Image.network(company.images!.first),
+                  child: AppNetworkImage(imageUrl: company.images!.first, fit: BoxFit.cover),
                 ),
                 Padding(
                   padding: const EdgeInsets.all(16),

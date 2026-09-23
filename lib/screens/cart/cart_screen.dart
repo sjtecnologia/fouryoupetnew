@@ -5,8 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:fouryoupet/helpers/price_card.dart';
 import 'package:fouryoupet/models/cart/cart_manager.dart';
 
-import '../../helpers/empty_card.dart';
-import '../../helpers/login_card.dart';
+import '../../common/empty_card.dart';
+import '../../common/login_card.dart';
 import '../../models/page_manager.dart';
 
 import 'components/cart_tile.dart';

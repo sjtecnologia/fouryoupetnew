@@ -13,11 +13,15 @@ class ButtonHoursFree extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           elevation: 2,
           backgroundColor: isFavorite ? Colors.orange[900] : Colors.orange[400],
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         onPressed: onPressed,
         child: Text(
           text,
-          style: TextStyle(color: Colors.black),
+          style:
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       );
 

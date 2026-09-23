@@ -48,6 +48,11 @@ class Order {
       trocopara = doc.get('trocopara') as num?;
       payId = doc.get('payId') as String?;
       Map<String, dynamic> dataMap = doc.data() as Map<String, dynamic>;
+      paymentId = dataMap['paymentId'] as String? ?? payId;
+      paymentMethod = dataMap['paymentMethod'] as String?;
+      paymentStatus = dataMap['paymentStatus'] as String?;
+      pixQrCode = dataMap['pixQrCode'] as String?;
+      pixCopyPaste = dataMap['pixCopyPaste'] as String?;
       if (dataMap.containsKey('discount')) {
         discount = doc.get('discount') as double?;
       }
@@ -80,7 +85,7 @@ class Order {
     String? namecompany = company.name;
 
     try {
-      firestore.collection('orders').doc(orderId).set({
+      await firestore.collection('orders').doc(orderId).set({
         'items': items!.map((e) => e.toOrderItemMap()).toList(),
         'price': price,
         'frete': frete,
@@ -89,6 +94,11 @@ class Order {
         'status': status?.index ?? 1,
         'date': Timestamp.now(),
         'payId': payId,
+        'paymentId': paymentId,
+        'paymentMethod': paymentMethod,
+        'paymentStatus': paymentStatus,
+        'pixQrCode': pixQrCode,
+        'pixCopyPaste': pixCopyPaste,
         'companyID': companyID,
         'trocopara': trocopara,
         'discount': discount,
@@ -96,6 +106,7 @@ class Order {
       });
     } on Exception catch (e, s) {
       log('Erro ao gerar pedido', error: e, stackTrace: s);
+      rethrow;
     }
 
     String? subject = 'Novo Pedido';
@@ -140,8 +151,6 @@ class Order {
 
   Future<void> cancel() async {
     try {
-      // await CieloPayment().cancel(payId);
-
       status = Status.canceled;
       await firestoreRef.update({'status': status!.index});
       await _incrementStock();
@@ -235,6 +244,11 @@ class Order {
 
   String? get id => orderId;
   String? payId;
+  String? paymentId;
+  String? paymentMethod;
+  String? paymentStatus;
+  String? pixQrCode;
+  String? pixCopyPaste;
   String? username;
 
   List<CartProduct>? items;

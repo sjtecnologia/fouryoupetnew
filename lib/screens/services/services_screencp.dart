@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fouryoupet/common/empty_card.dart';
 import 'package:fouryoupet/models/service/service.dart';
 import 'package:fouryoupet/models/service/service_manager.dart';
 
@@ -25,8 +26,10 @@ class ServicesScreencp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
+        elevation: 0,
         title: Consumer<ServiceManager>(
           builder: (_, serviceManager, __) {
             if (serviceManager.search.isEmpty) {
@@ -105,12 +108,13 @@ class ServicesScreencp extends StatelessWidget {
         ],
       ),
       body: Container(
-        decoration: BoxDecoration(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [
               Color.fromARGB(255, 255, 111, 0),
               Color.fromARGB(255, 255, 161, 0),
-              //Colors.white,
             ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -145,15 +149,37 @@ class ServicesScreencp extends StatelessWidget {
           }
           final filteredServices = filteredService2;
 
-          return Skeletonizer(
-            enabled: serviceManager.loading,
-            child: ListView.builder(
-                itemCount: filteredServices.length,
-                itemBuilder: (_, index) {
-                  return ServiceListTile(
-                      filteredServices[index], this.companyid,
-                      homeclic: homeclic);
-                }),
+          return Column(
+            children: [
+              if (filteredServices.isNotEmpty)
+                Expanded(
+                  child: Skeletonizer(
+                    enabled: serviceManager.loading,
+                    child: ListView.builder(
+                        itemCount: filteredServices.length,
+                        itemBuilder: (_, index) {
+                          return ServiceListTile(
+                              filteredServices[index], this.companyid,
+                              homeclic: homeclic);
+                        }),
+                  ),
+                )
+              else
+                Expanded(
+                  child: serviceManager.loading
+                      ? const Center(
+                          child: CircularProgressIndicator.adaptive(
+                            backgroundColor: Colors.white,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.orangeAccent),
+                          ),
+                        )
+                      : EmptyCard(
+                          title: 'Nenhum cuidado encontrado',
+                          iconData: Icons.border_clear,
+                        ),
+                ),
+            ],
           );
         }),
       ),

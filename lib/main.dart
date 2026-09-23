@@ -77,6 +77,7 @@ import 'package:fouryoupet/screens/select_service/select_service_screen.dart';
 import 'package:fouryoupet/screens/service/service_screen.dart';
 import 'package:fouryoupet/screens/services/services_screen.dart';
 import 'package:fouryoupet/screens/signup/signup_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:fouryoupet/screens/userterm/userterm_screen.dart';
 import 'package:fouryoupet/screens/userterm/userterm_screen_login.dart';
 
@@ -132,7 +133,7 @@ Future<void> main() async {
     FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
     // .env
-    // await dotenv.load(fileName: ".env");
+    await dotenv.load(fileName: '.env');
     // Inicializa Google Maps
     //await MapsService.initializeGoogleMaps();
 
